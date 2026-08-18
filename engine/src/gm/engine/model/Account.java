@@ -1,4 +1,4 @@
-package gm.engine.xml.model;
+package gm.engine.model;
 
 import gm.engine.exception.InvalidQuantityException;
 
@@ -34,5 +34,13 @@ public class Account {
                     String.format("Error: cannot withdraw a negative amount (%.2f).", amount));
         }
         balance -= amount;
+    }
+
+    public void recordCommission(double amount) {
+        if (amount < 0) {
+            throw new InvalidQuantityException(
+                    String.format("Error: cannot record a negative commission amount (%.2f).", amount));
+        }
+        totalCommissionCollected += amount;
     }
 }

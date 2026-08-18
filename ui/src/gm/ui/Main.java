@@ -1,9 +1,11 @@
 package gm.ui;
 
 import gm.engine.GuessMarketEngine;
+import gm.engine.GuessMarketEngineImpl;
 
 public class Main {
     public static void main(String[] args) {
-        new GuessMarketUI(new GuessMarketEngine()).run();
+        GuessMarketEngine engine = new GuessMarketEngineImpl();
+        new GuessMarketUI(engine).run();
     }
 }

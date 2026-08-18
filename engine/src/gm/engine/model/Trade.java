@@ -1,4 +1,4 @@
-package gm.engine.xml.model;
+package gm.engine.model;
 
 import gm.engine.exception.InvalidEventDataException;
 import gm.engine.exception.InvalidQuantityException;
@@ -46,7 +46,7 @@ public class Trade {
         return commissionPaid;
     }
 
-    public double calcTotalPaid(double sharesCost, double commissionPaid) {
+    private static double calcTotalPaid(double sharesCost, double commissionPaid) {
         return sharesCost + commissionPaid;
     }
 

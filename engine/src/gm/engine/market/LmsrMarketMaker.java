@@ -15,10 +15,6 @@ public class LmsrMarketMaker implements MarketMaker {
         this.liquidityParameter = liquidityParameter;
     }
 
-    public int getLiquidityParameter() {
-        return liquidityParameter;
-    }
-
     @Override
     public double optionPrice(int optionIndex, long[] shares) {
         double[] x = toExponents(shares);

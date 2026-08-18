@@ -3,10 +3,10 @@ package gm.engine.xml;
 import gm.engine.exception.*;
 import gm.engine.market.LmsrMarketMaker;
 import gm.engine.market.MarketMaker;
-import gm.engine.xml.model.CommissionType;
-import gm.engine.xml.model.Event;
-import gm.engine.xml.model.EventOption;
-import gm.engine.xml.model.GuessMarketSystem;
+import gm.engine.model.CommissionType;
+import gm.engine.model.Event;
+import gm.engine.model.EventOption;
+import gm.engine.model.GuessMarketSystem;
 import gm.engine.xml.generated.model.Comision;
 import gm.engine.xml.generated.model.GMEvent;
 import gm.engine.xml.generated.model.GuessMarket;
@@ -71,8 +71,6 @@ public class XmlEventLoader {
         return new GuessMarketSystem(events);
     }
 
-    // ---------- path / file checks ----------
-
     private String validatePath(String rawPath) {
         if (rawPath == null || rawPath.trim().isEmpty()) {
             throw new InvalidFilePathException(
@@ -98,8 +96,6 @@ public class XmlEventLoader {
         }
         return file;
     }
-
-    // ---------- unmarshal ----------
 
     private GuessMarket unmarshal(File file) {
         try {
@@ -128,8 +124,6 @@ public class XmlEventLoader {
                     String.format("Error: the file is not valid XML. Details: %s", e.getMessage()));
         }
     }
-
-    // ---------- application-level validation ----------
 
     private void validateEvent(GMEvent gmEvent, int eventNumber, Map<Integer, String> seenIds, List<String> problems) {
         String label = String.format("Event #%d (\"%s\")", eventNumber, safe(gmEvent.getName()));
@@ -194,8 +188,6 @@ public class XmlEventLoader {
     private String safe(String s) {
         return s == null ? "" : s.trim();
     }
-
-    // ---------- mapping ----------
 
     private Event mapEvent(GMEvent gmEvent, int eventNumber) {
         Comision comision = gmEvent.getComision();

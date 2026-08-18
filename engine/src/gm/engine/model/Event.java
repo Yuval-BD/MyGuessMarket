@@ -1,4 +1,4 @@
-package gm.engine.xml.model;
+package gm.engine.model;
 
 import java.util.Collections;
 import java.util.List;
@@ -89,7 +89,6 @@ public class Event {
     public MarketMaker getMarketMaker() { return marketMaker; }
     public Account getAccount() { return account; }
     public List<Trade> getTrades() { return Collections.unmodifiableList(trades); }
-    public EventStatus getStatus() { return status; }
     public boolean isActive() { return status == EventStatus.ACTIVE; }
     public EventOption getWinningOption() { return winningOption; }
     public long[] getSharesArray() {
