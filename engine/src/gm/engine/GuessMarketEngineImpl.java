@@ -23,11 +23,6 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
-    public boolean isFileLoaded() {
-        return system != null;
-    }
-
-    @Override
     public List<EventDto> getAllEvents() {
         requireFileLoaded();
         return system.getEvents().stream().map(DtoMapper::toEventDto).toList();
