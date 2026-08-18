@@ -32,7 +32,6 @@ public final class EventStateDto {
     }
 
     public int getEventNumber() { return eventNumber; }
-    public int getId() { return id; }
     public String getName() { return name; }
     public boolean isActive() { return active; }
     public List<OptionStateDto> getOptions() { return options; }

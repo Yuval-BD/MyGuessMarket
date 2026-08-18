@@ -156,7 +156,7 @@ public class GuessMarketUI {
             printEventSummary(event);
         }
 
-        int eventNumber = readIntInRange("Enter the event number to view: ", 1, events.size());
+        int eventNumber = readIntInRange("Enter the event number to view: ", events.size());
 
         try {
             EventStateDto state = engine.getEventState(eventNumber);
@@ -197,14 +197,14 @@ public class GuessMarketUI {
         System.out.println();
     }
 
-    private int readIntInRange(String prompt, int min, int max) {
+    private int readIntInRange(String prompt, int max) {
         while (true) {
             System.out.print(prompt);
             String line = scanner.nextLine().trim();
             try {
                 int value = Integer.parseInt(line);
-                if (value < min || value > max) {
-                    System.out.printf("Please enter a number between %d and %d.%n", min, max);
+                if (value < 1 || value > max) {
+                    System.out.printf("Please enter a number between %d and %d.%n", 1, max);
                 } else {
                     return value;
                 }
@@ -218,7 +218,7 @@ public class GuessMarketUI {
         for (EventDto event : events) {
             printEventSummary(event);
         }
-        int localIndex = readIntInRange(prompt, 1, events.size());
+        int localIndex = readIntInRange(prompt, events.size());
         return events.get(localIndex - 1);
     }
 
@@ -237,8 +237,8 @@ public class GuessMarketUI {
             EventStateDto stateBefore = engine.getEventState(eventNumber);
             printEventState(stateBefore);
 
-            int optionNumber = readIntInRange("Enter the option number you want to buy: ", 1, stateBefore.getOptions().size());
-            long quantity = readPositiveLong("Enter the quantity of shares to buy: ");
+            int optionNumber = readIntInRange("Enter the option number you want to buy: ", stateBefore.getOptions().size());
+            long quantity = readPositiveLong();
 
             PurchaseResultDto result = engine.buyShares(eventNumber, optionNumber, quantity);
 
@@ -251,9 +251,9 @@ public class GuessMarketUI {
         }
     }
 
-    private long readPositiveLong(String prompt) {
+    private long readPositiveLong() {
         while (true) {
-            System.out.print(prompt);
+            System.out.print("Enter the quantity of shares to buy: ");
             String line = scanner.nextLine().trim();
             try {
                 long value = Long.parseLong(line);
@@ -283,7 +283,7 @@ public class GuessMarketUI {
             EventStateDto stateBefore = engine.getEventState(eventNumber);
             printEventState(stateBefore);
 
-            int optionNumber = readIntInRange("Enter the number of the winning option: ", 1, stateBefore.getOptions().size());
+            int optionNumber = readIntInRange("Enter the number of the winning option: ", stateBefore.getOptions().size());
 
             CloseResultDto result = engine.closeEvent(eventNumber, optionNumber);
 

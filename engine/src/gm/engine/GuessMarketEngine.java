@@ -11,8 +11,6 @@ public interface GuessMarketEngine {
 
     void loadEventsFromFile(String fullPath);
 
-    boolean isFileLoaded();
-
     List<EventDto> getAllEvents();
 
     List<EventDto> getActiveEvents();

@@ -27,7 +27,6 @@ public final class EventDto {
     }
 
     public int getEventNumber() { return eventNumber; }
-    public int getId() { return id; }
     public String getName() { return name; }
     public String getDescription() { return description; }
     public int getCommissionPercent() { return commissionPercent; }

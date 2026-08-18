@@ -18,7 +18,5 @@ public final class TradeDto {
 
     public String getOptionName() { return optionName; }
     public long getQuantity() { return quantity; }
-    public double getSharesCost() { return sharesCost; }
-    public double getCommissionPaid() { return commissionPaid; }
     public double getTotalPaid() { return totalPaid; }
 }
