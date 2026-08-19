@@ -51,7 +51,7 @@ public final class DtoMapper {
         for (int i = eventTrades.size() - 1; i >= 0; i--) {   // newest first
             Trade t = eventTrades.get(i);
             trades.add(new TradeDto(t.getOption().getName(), t.getQuantity(),
-                    t.getSharesCost(), t.getCommissionPaid(), t.getTotalPaid()));
+                    t.getTotalPaid()));
         }
 
         String winningOptionName = null;
