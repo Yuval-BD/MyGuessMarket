@@ -3,3 +3,6 @@ out/
 *.iml
 *.ipr
 *.iws
+
+# JavaFX SDK - downloaded separately, see README (jfxwebkit.dll alone is 92 MB)
+lib/javafx-sdk-25.0.4/
