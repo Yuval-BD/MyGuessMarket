@@ -27,7 +27,7 @@ import jakarta.xml.bind.annotation.XmlType;
  *       <sequence>
  *         <element ref="{}id"/>
  *         <element ref="{}description"/>
- *         <element ref="{}comision"/>
+ *         <element ref="{}commission"/>
  *         <element ref="{}GM-options"/>
  *         <element ref="{}GM-method"/>
  *       </sequence>
@@ -43,7 +43,7 @@ import jakarta.xml.bind.annotation.XmlType;
 @XmlType(name = "", propOrder = {
     "id",
     "description",
-    "comision",
+    "commission",
     "gmOptions",
     "gmMethod"
 })
@@ -54,7 +54,7 @@ public class GMEvent {
     @XmlElement(required = true)
     protected String description;
     @XmlElement(required = true)
-    protected Comision comision;
+    protected Commission commission;
     @XmlElement(name = "GM-options", required = true)
     protected GMOptions gmOptions;
     @XmlElement(name = "GM-method", required = true)
@@ -103,27 +103,27 @@ public class GMEvent {
     }
 
     /**
-     * Gets the value of the comision property.
+     * Gets the value of the commission property.
      * 
      * @return
      *     possible object is
-     *     {@link Comision }
+     *     {@link Commission }
      *     
      */
-    public Comision getComision() {
-        return comision;
+    public Commission getCommission() {
+        return commission;
     }
 
     /**
-     * Sets the value of the comision property.
+     * Sets the value of the commission property.
      * 
      * @param value
      *     allowed object is
-     *     {@link Comision }
+     *     {@link Commission }
      *     
      */
-    public void setComision(Comision value) {
-        this.comision = value;
+    public void setCommission(Commission value) {
+        this.commission = value;
     }
 
     /**
