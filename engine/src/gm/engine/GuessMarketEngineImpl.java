@@ -1,107 +1,108 @@
 package gm.engine;
 
-import gm.engine.dto.*;
-import gm.engine.exception.EventNotActiveException;
+import gm.engine.dto.CloseResultDto;
+import gm.engine.dto.DtoMapper;
+import gm.engine.dto.EventDto;
+import gm.engine.dto.EventStateDto;
+import gm.engine.dto.PurchaseResultDto;
+import gm.engine.dto.UserDto;
 import gm.engine.exception.NoFileLoadedException;
-import gm.engine.model.CommissionType;
+import gm.engine.model.ClosingOutcome;
 import gm.engine.model.Event;
 import gm.engine.model.EventOption;
 import gm.engine.model.GuessMarketSystem;
 import gm.engine.model.Trade;
+import gm.engine.model.User;
 import gm.engine.xml.XmlEventLoader;
 
 import java.util.List;
 
+/**
+ * Thin coordinator. It holds the loaded system, resolves the keys the UI speaks in (event id,
+ * user name, 1-based option number) into model objects, and converts what comes back into DTOs.
+ * <p>
+ * Deliberately thin: the rules live in the model. If logic starts collecting here, it usually
+ * belongs on {@link Event} or {@link User} instead.
+ */
 public class GuessMarketEngineImpl implements GuessMarketEngine {
 
     private final XmlEventLoader loader = new XmlEventLoader();
+
     private GuessMarketSystem system;
+    private String loadedFilePath;
 
     @Override
     public void loadEventsFromFile(String fullPath) {
-        this.system = loader.load(fullPath);
+        // Assigned only on success, so a failed load leaves the previous system untouched.
+        GuessMarketSystem loaded = loader.load(fullPath);
+        system = loaded;
+        loadedFilePath = fullPath.trim();
+    }
+
+    @Override
+    public boolean isFileLoaded() {
+        return system != null;
+    }
+
+    @Override
+    public String getLoadedFilePath() {
+        return loadedFilePath;
+    }
+
+    @Override
+    public List<UserDto> getAllUsers() {
+        return DtoMapper.toUserDtos(requireSystem().getUsers());
+    }
+
+    @Override
+    public UserDto getUser(String userName) {
+        return DtoMapper.toUserDto(requireSystem().getUser(userName));
     }
 
     @Override
     public List<EventDto> getAllEvents() {
-        requireFileLoaded();
-        return system.getEvents().stream().map(DtoMapper::toEventDto).toList();
-    }
-
-    @Override
-    public List<EventDto> getActiveEvents() {
-        requireFileLoaded();
-        return system.getEvents().stream()
-                .filter(Event::isActive)
-                .map(DtoMapper::toEventDto)
-                .toList();
+        return DtoMapper.toEventDtos(requireSystem().getEvents());
     }
 
     @Override
     public EventStateDto getEventState(int eventId) {
-        requireFileLoaded();
-        Event event = system.getEvent(eventId);
-        return DtoMapper.toEventStateDto(event);
+        return DtoMapper.toEventStateDto(requireSystem().getEvent(eventId));
     }
 
     @Override
-    public PurchaseResultDto buyShares(int eventId, int optionNumber, long quantity) {
-        requireFileLoaded();
-        Event event = system.getEvent(eventId);
-
-        if (!event.isActive()) {
-            throw new EventNotActiveException(String.format(
-                    "Error: event \"%s\" is closed. You cannot buy shares in a closed event.", event.getName()));
-        }
-
-        EventOption option = event.getOption(optionNumber);
-        long[] sharesBefore = event.getSharesArray();
-        int index = optionNumber - 1;
-
-        double sharesCost = event.getMarketMaker().costOfBuying(index, quantity, sharesBefore);
-
-        double commission = (event.getCommissionType() == CommissionType.ON_PURCHASE)
-                ? sharesCost * event.getCommissionPercent() / 100.0
-                : 0.0;
-        double totalPaid = sharesCost + commission;
-
-        option.addShares(quantity);
-        event.getAccount().deposit(sharesCost);
-        event.getAccount().depositCommission(commission);   // 0 when ON_CLOSE — harmless
-
-        event.recordTrade(new Trade(option, quantity, sharesCost, commission));
-
-        EventStateDto stateAfter = DtoMapper.toEventStateDto(event);
-        return new PurchaseResultDto(sharesCost, commission, totalPaid, stateAfter);
+    public void openEvent(int eventId, String marketMakerName) {
+        GuessMarketSystem loaded = requireSystem();
+        Event event = loaded.getEvent(eventId);
+        User actor = loaded.getUser(marketMakerName);
+        event.open(actor);
     }
 
     @Override
-    public CloseResultDto closeEvent(int eventId, int optionNumber) {
-        requireFileLoaded();
-        Event event = system.getEvent(eventId);
+    public CloseResultDto closeEvent(int eventId, String marketMakerName, int optionNumber) {
+        GuessMarketSystem loaded = requireSystem();
+        Event event = loaded.getEvent(eventId);
+        User actor = loaded.getUser(marketMakerName);
         EventOption winner = event.getOption(optionNumber);
 
-        event.close(winner);   // throws if already closed, or if winner isn't one of this event's options
-
-        long winningShares = winner.getSharesBought();
-        double gross = winningShares * 1.0;
-        double commissionCharged = 0.0;
-
-        if (event.getCommissionType() == CommissionType.ON_CLOSE) {
-            commissionCharged = gross * event.getCommissionPercent() / 100.0;
-            event.getAccount().recordCommission(commissionCharged);
-        }
-
-        double payout = gross - commissionCharged;
-        event.getAccount().withdraw(payout);
-
-        EventStateDto finalState = DtoMapper.toEventStateDto(event);
-        return new CloseResultDto(winner.getName(), commissionCharged, payout, finalState);
+        ClosingOutcome outcome = event.close(actor, winner);
+        return DtoMapper.toCloseResultDto(outcome, event);
     }
 
-    private void requireFileLoaded() {
+    @Override
+    public PurchaseResultDto buyLmsrShares(int eventId, String userName, int optionNumber, long quantity) {
+        GuessMarketSystem loaded = requireSystem();
+        Event event = loaded.getEvent(eventId);
+        User buyer = loaded.getUser(userName);
+
+        Trade trade = event.buyLmsr(buyer, optionNumber, quantity);
+        return DtoMapper.toPurchaseResultDto(trade, buyer, event);
+    }
+
+    private GuessMarketSystem requireSystem() {
         if (system == null) {
-            throw new NoFileLoadedException("Error: no XML file has been loaded yet. Please load a file first.");
+            throw new NoFileLoadedException(
+                    "Error: no file is loaded yet. Load a Guess Market XML file first.");
         }
+        return system;
     }
 }

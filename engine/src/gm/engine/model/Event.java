@@ -34,6 +34,7 @@ public class Event {
     private final Map<String, Participation> participants = new LinkedHashMap<>();
     private final List<Trade> trades = new ArrayList<>();
 
+    private double commissionCollected = 0;
     private EventStatus status = EventStatus.NOT_STARTED;
     private EventOption winningOption;
 
@@ -122,6 +123,7 @@ public class Event {
             account.withdraw(gross);
             participation.getUser().credit(gross - commission);
             marketMaker.collectCommission(commission);
+            commissionCollected += commission;
             participation.recordPayout(gross, commission);
 
             totalPaidToWinners += gross;
@@ -158,6 +160,7 @@ public class Event {
         buyer.charge(sharesCost + commission);
         account.deposit(sharesCost);
         marketMaker.collectCommission(commission);
+        commissionCollected += commission;
         option.addShares(quantity);
 
         Trade trade = new Trade(buyer.getName(), option, quantity, sharesCost, commission);
@@ -204,6 +207,8 @@ public class Event {
     public TradingMethod getTradingMethod() { return tradingMethod; }
     public User getMarketMaker() { return marketMaker; }
     public Account getAccount() { return account; }
+    /** Commission this event has generated for its market maker, across all its trades. */
+    public double getCommissionCollected() { return commissionCollected; }
     public List<Trade> getTrades() { return Collections.unmodifiableList(trades); }
     public EventStatus getStatus() { return status; }
     public boolean isActive() { return status == EventStatus.ACTIVE; }
