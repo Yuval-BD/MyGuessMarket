@@ -9,6 +9,7 @@ import gm.engine.dto.OptionStateDto;
 import gm.engine.dto.PurchaseResultDto;
 import gm.engine.dto.UserDto;
 import gm.engine.exception.GuessMarketException;
+import gm.engine.exception.XmlContentException;
 
 /**
  * Scripted smoke test for the engine. Replaces the exercise-1 interactive console.
@@ -22,8 +23,10 @@ import gm.engine.exception.GuessMarketException;
  */
 public final class SmokeMain {
 
-    private static final String DEFAULT_XML =
-            "C:\\Users\\yuvib\\OneDrive\\Desktop\\JAVA Projects\\Project 2\\AI Info\\small.xml";
+    private static final String XML_FOLDER =
+            "C:\\Users\\yuvib\\OneDrive\\Desktop\\JAVA Projects\\Project 2\\AI Info\\";
+
+    private static final String DEFAULT_XML = XML_FOLDER + "small.xml";
 
     /** Event 1 in small.xml: "Mujtaba is Dead", LMSR with b=100, commission 5% on-purchase. */
     private static final int LMSR_EVENT_ID = 1;
@@ -49,6 +52,7 @@ public final class SmokeMain {
 
         try {
             runScenario(engine, xmlPath);
+            runRejectionScenario(engine);
         } catch (GuessMarketException e) {
             System.out.println();
             System.out.println("ABORTED - the engine rejected something: " + e.getMessage());
@@ -112,6 +116,57 @@ public final class SmokeMain {
         check("Tikva after leftover returns", balanceOf(engine, MARKET_MAKER), 9965.11);
         check("event account emptied", accountOf(engine, LMSR_EVENT_ID), 0.00);
         checkConservation(engine, "after close");
+    }
+
+    /**
+     * The other half of loading: a file that is schema-valid but application-invalid must be
+     * rejected with readable reasons, and must leave the system already loaded untouched.
+     * <p>
+     * That second part is the one worth guarding. It is easy to write a loader that mutates as it
+     * parses, and the damage only shows up as a half-replaced system some time later.
+     */
+    private static void runRejectionScenario(GuessMarketEngine engine) {
+
+        // The good file is still loaded from the first scenario, and its event 1 is now closed
+        // with Menash holding 100 winning shares. Nothing below may disturb any of that.
+        double menashBefore = balanceOf(engine, BUYER);
+        double tikvaBefore = balanceOf(engine, MARKET_MAKER);
+        int eventsBefore = engine.getAllEvents().size();
+
+        expectRejection(engine, XML_FOLDER + "error-2.xml",
+                "user with zero initial cash");
+        expectRejection(engine, XML_FOLDER + "error-3.xml",
+                "market maker pointing at an event that does not exist");
+        expectRejection(engine, XML_FOLDER + "does-not-exist.xml",
+                "missing file");
+        expectRejection(engine, XML_FOLDER + "small.txt",
+                "wrong extension");
+
+        heading("The good file survived every rejection");
+        check("events still loaded", engine.getAllEvents().size(), eventsBefore);
+        check("Menash balance untouched", balanceOf(engine, BUYER), menashBefore);
+        check("Tikva balance untouched", balanceOf(engine, MARKET_MAKER), tikvaBefore);
+        check("loaded path still the good file",
+                engine.getLoadedFilePath().endsWith("small.xml") ? 1 : 0, 1);
+        checkConservation(engine, "after rejections");
+    }
+
+    /** Loads a file that must fail, and prints why the engine refused it. */
+    private static void expectRejection(GuessMarketEngine engine, String path, String because) {
+        heading("Reject: " + because);
+        checksRun++;
+        try {
+            engine.loadEventsFromFile(path);
+            checksFailed++;
+            System.out.println("  [FAIL] the file loaded, but it should have been rejected.");
+        } catch (XmlContentException e) {
+            System.out.println("  [OK  ] rejected, listing every problem at once:");
+            for (String problem : e.getProblems()) {
+                System.out.println("           - " + problem);
+            }
+        } catch (GuessMarketException e) {
+            System.out.println("  [OK  ] rejected: " + e.getMessage());
+        }
     }
 
     // ---------------------------------------------------------------- helpers
