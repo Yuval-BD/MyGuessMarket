@@ -1,13 +1,13 @@
-package gm.engine.market;
+package gm.engine.trading;
 
 import gm.engine.exception.InvalidEventDataException;
 import gm.engine.exception.InvalidQuantityException;
 
-public class LmsrMarketMaker implements MarketMaker {
+public final class LmsrTradingMethod implements TradingMethod {
 
     private final int liquidityParameter;
 
-    public LmsrMarketMaker(int liquidityParameter) {
+    public LmsrTradingMethod(int liquidityParameter) {
         if (liquidityParameter <= 0) {
             throw new InvalidEventDataException(String.format(
                     "Error: liquidity parameter must be a positive integer, but got %d.", liquidityParameter));
@@ -16,6 +16,10 @@ public class LmsrMarketMaker implements MarketMaker {
     }
 
     @Override
+    public TradingMethodType kind() {
+        return TradingMethodType.LMSR;
+    }
+
     public double optionPrice(int optionIndex, long[] shares) {
         double[] x = toExponents(shares);
         double m = max(x);
@@ -26,7 +30,6 @@ public class LmsrMarketMaker implements MarketMaker {
         return Math.exp(x[optionIndex] - m) / sum;
     }
 
-    @Override
     public double costOfBuying(int optionIndex, long quantity, long[] shares) {
         if (quantity <= 0) {
             throw new InvalidQuantityException(
@@ -39,7 +42,7 @@ public class LmsrMarketMaker implements MarketMaker {
     }
 
     @Override
-    public double initialSubsidy(int numberOfOptions) {
+    public double openingInvestment(int numberOfOptions) {
         return cost(new long[numberOfOptions]);
     }
 

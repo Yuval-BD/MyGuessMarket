@@ -25,7 +25,6 @@ public final class DtoMapper {
                 .toList();
 
         return new EventDto(
-                event.getEventNumber(),
                 event.getId(),
                 event.getName(),
                 event.getDescription(),
@@ -67,7 +66,6 @@ public final class DtoMapper {
         }
 
         return new EventStateDto(
-                event.getEventNumber(),
                 event.getId(),
                 event.getName(),
                 event.isActive(),

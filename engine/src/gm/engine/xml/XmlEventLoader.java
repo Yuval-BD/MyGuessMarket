@@ -1,8 +1,8 @@
 package gm.engine.xml;
 
 import gm.engine.exception.*;
-import gm.engine.market.LmsrMarketMaker;
-import gm.engine.market.MarketMaker;
+import gm.engine.trading.LmsrTradingMethod;
+import gm.engine.trading.TradingMethod;
 import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
 import gm.engine.model.EventOption;
@@ -125,8 +125,8 @@ public class XmlEventLoader {
         }
     }
 
-    private void validateEvent(GMEvent gmEvent, int eventNumber, Map<Integer, String> seenIds, List<String> problems) {
-        String label = String.format("Event #%d (\"%s\")", eventNumber, safe(gmEvent.getName()));
+    private void validateEvent(GMEvent gmEvent, int eventId, Map<Integer, String> seenIds, List<String> problems) {
+        String label = String.format("Event #%d (\"%s\")", eventId, safe(gmEvent.getName()));
 
         if (isBlank(gmEvent.getName())) {
             problems.add(label + ": name must not be blank.");
@@ -189,7 +189,7 @@ public class XmlEventLoader {
         return s == null ? "" : s.trim();
     }
 
-    private Event mapEvent(GMEvent gmEvent, int eventNumber) {
+    private Event mapEvent(GMEvent gmEvent, int eventId) {
         Comision comision = gmEvent.getComision();
         CommissionType commissionType = CommissionType.fromXmlValue(comision.getType());
 
@@ -199,17 +199,17 @@ public class XmlEventLoader {
         }
 
         int liquidityParameter = gmEvent.getGMMethod().getGMLMSR().getB();
-        MarketMaker marketMaker = new LmsrMarketMaker(liquidityParameter);
+        TradingMethod tradingMethod = new LmsrTradingMethod(liquidityParameter);
 
         return new Event(
-                eventNumber,
+                eventId,
                 gmEvent.getId(),
                 gmEvent.getName().trim(),
                 gmEvent.getDescription().trim(),
                 comision.getValue(),
                 commissionType,
                 options,
-                marketMaker
+                tradingMethod
         );
     }
 }

@@ -4,7 +4,6 @@ import java.util.List;
 
 public final class EventStateDto {
 
-    private final int eventNumber;
     private final int id;
     private final String name;
     private final boolean active;
@@ -15,11 +14,10 @@ public final class EventStateDto {
     private final String winningOptionName;
     private final Double totalPaidToWinners;
 
-    public EventStateDto(int eventNumber, int id, String name, boolean active,
+    public EventStateDto(int id, String name, boolean active,
                          List<OptionStateDto> options, double accountBalance,
                          double totalCommissionCollected, List<TradeDto> trades,
                          String winningOptionName, Double totalPaidToWinners) {
-        this.eventNumber = eventNumber;
         this.id = id;
         this.name = name;
         this.active = active;
@@ -31,7 +29,7 @@ public final class EventStateDto {
         this.totalPaidToWinners = totalPaidToWinners;
     }
 
-    public int getEventNumber() { return eventNumber; }
+    public int getId() { return id; }
     public String getName() { return name; }
     public boolean isActive() { return active; }
     public List<OptionStateDto> getOptions() { return options; }

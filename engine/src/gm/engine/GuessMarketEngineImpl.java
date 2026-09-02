@@ -38,16 +38,16 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
-    public EventStateDto getEventState(int eventNumber) {
+    public EventStateDto getEventState(int eventId) {
         requireFileLoaded();
-        Event event = system.getEvent(eventNumber);
+        Event event = system.getEvent(eventId);
         return DtoMapper.toEventStateDto(event);
     }
 
     @Override
-    public PurchaseResultDto buyShares(int eventNumber, int optionNumber, long quantity) {
+    public PurchaseResultDto buyShares(int eventId, int optionNumber, long quantity) {
         requireFileLoaded();
-        Event event = system.getEvent(eventNumber);
+        Event event = system.getEvent(eventId);
 
         if (!event.isActive()) {
             throw new EventNotActiveException(String.format(
@@ -76,9 +76,9 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
-    public CloseResultDto closeEvent(int eventNumber, int optionNumber) {
+    public CloseResultDto closeEvent(int eventId, int optionNumber) {
         requireFileLoaded();
-        Event event = system.getEvent(eventNumber);
+        Event event = system.getEvent(eventId);
         EventOption winner = event.getOption(optionNumber);
 
         event.close(winner);   // throws if already closed, or if winner isn't one of this event's options

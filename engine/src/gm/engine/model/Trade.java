@@ -5,13 +5,18 @@ import gm.engine.exception.InvalidQuantityException;
 
 public class Trade {
 
+    private final String buyerName;
     private final EventOption option;
     private final long quantity;
     private final double sharesCost;
     private final double commissionPaid;
     private final double totalPaid;
 
-    public Trade(EventOption option, long quantity, double sharesCost, double commissionPaid) {
+    public Trade(String buyerName, EventOption option, long quantity,
+                 double sharesCost, double commissionPaid) {
+        if (buyerName == null || buyerName.isBlank()) {
+            throw new InvalidEventDataException("Error: a trade must record who made it.");
+        }
         if (option == null) {
             throw new InvalidEventDataException("Error: a trade must reference a valid option.");
         }
@@ -23,11 +28,16 @@ public class Trade {
             throw new InvalidEventDataException("Error: trade cost and commission cannot be negative.");
         }
 
+        this.buyerName = buyerName;
         this.option = option;
         this.quantity = quantity;
         this.sharesCost = sharesCost;
         this.commissionPaid = commissionPaid;
         this.totalPaid = calcTotalPaid(sharesCost, commissionPaid);
+    }
+
+    public String getBuyerName() {
+        return buyerName;
     }
 
     public EventOption getOption() {

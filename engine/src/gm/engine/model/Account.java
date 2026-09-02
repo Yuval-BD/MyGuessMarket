@@ -43,4 +43,6 @@ public class Account {
         }
         totalCommissionCollected += amount;
     }
+
+    public boolean isOverdrawn() { return balance < 0; }
 }

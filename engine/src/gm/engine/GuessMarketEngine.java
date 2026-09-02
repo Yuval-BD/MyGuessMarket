@@ -15,9 +15,9 @@ public interface GuessMarketEngine {
 
     List<EventDto> getActiveEvents();
 
-    EventStateDto getEventState(int eventNumber);
+    EventStateDto getEventState(int eventId);
 
-    PurchaseResultDto buyShares(int eventNumber, int optionNumber, long quantity);
+    PurchaseResultDto buyShares(int eventId, int optionNumber, long quantity);
 
-    CloseResultDto closeEvent(int eventNumber, int optionNumber);
+    CloseResultDto closeEvent(int eventId, int optionNumber);
 }
