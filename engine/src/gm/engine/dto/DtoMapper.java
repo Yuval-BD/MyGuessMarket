@@ -6,8 +6,13 @@ import gm.engine.model.CommissionType;
 import gm.engine.model.Event;
 import gm.engine.model.EventOption;
 import gm.engine.model.EventStatus;
+import gm.engine.model.Holding;
+import gm.engine.model.Participation;
 import gm.engine.model.Trade;
 import gm.engine.model.User;
+import gm.engine.orderbook.Execution;
+import gm.engine.orderbook.ExecutionKind;
+import gm.engine.orderbook.OrderResult;
 import gm.engine.trading.LmsrTradingMethod;
 import gm.engine.trading.TradingMethodType;
 
@@ -162,7 +167,64 @@ public final class DtoMapper {
                 outcome.totalPaidToWinners(),
                 outcome.totalCommissionCollected(),
                 outcome.leftoverReturnedToMarketMaker(),
-                toEventStateDto(event));
+                lmsrStateOrNull(event));
+    }
+
+    /**
+     * The LMSR price state, or null for an order-book event, which has no such thing - it has two
+     * books instead. The figures that matter at close (what was paid out, the commission, the
+     * leftover) are on the result itself, so an order-book close loses nothing by this being null.
+     */
+    private static EventStateDto lmsrStateOrNull(Event event) {
+        return event.getTradingMethod() instanceof LmsrTradingMethod
+                ? toEventStateDto(event)
+                : null;
+    }
+
+    /**
+     * Builds a user's involvement in one event. A market maker who has never traded still counts as
+     * involved, so {@code participation} may legitimately be null.
+     */
+    public static UserInvolvementDto toInvolvementDto(Event event, Participation participation,
+                                                      boolean isMarketMaker) {
+        List<HoldingDto> holdings = new ArrayList<>();
+        double commissionPaid = 0;
+        double netResult = 0;
+
+        if (participation != null) {
+            for (Holding holding : participation.getHoldings()) {
+                holdings.add(new HoldingDto(
+                        holding.getOptionName(), holding.getShares(), holding.getAmountPaid()));
+            }
+            commissionPaid = participation.getTotalCommissionPaid();
+            netResult = participation.getNetResult();
+        }
+
+        return new UserInvolvementDto(
+                event.getId(),
+                event.getName(),
+                toTradingMethodTypeDto(event.getTradingMethod().kind()),
+                toEventStatusDto(event.getStatus()),
+                isMarketMaker,
+                participation != null,
+                holdings,
+                commissionPaid,
+                netResult);
+    }
+
+    public static OrderResultDto toOrderResultDto(OrderResult result) {
+        List<ExecutionDto> executions = new ArrayList<>();
+        for (Execution execution : result.executions()) {
+            executions.add(new ExecutionDto(
+                    execution.kind() == ExecutionKind.MINT,
+                    execution.quantity(),
+                    execution.partyName(), execution.partyOptionName(), execution.partyPrice(),
+                    execution.counterpartyName(), execution.counterpartyOptionName(),
+                    execution.counterpartyPrice()));
+        }
+        return new OrderResultDto(
+                result.requestedQuantity(), result.filledQuantity(), result.restingQuantity(),
+                result.totalSpent(), result.totalReceived(), result.commissionPaid(), executions);
     }
 
     private static String winnerNameOf(Event event) {

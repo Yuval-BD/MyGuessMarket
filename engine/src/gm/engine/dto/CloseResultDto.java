@@ -27,5 +27,6 @@ public final class CloseResultDto {
     /** Unspent subsidy returned to the market maker. LMSR only, otherwise zero. */
     public double getLeftoverReturnedToMarketMaker() { return leftoverReturnedToMarketMaker; }
 
+    /** The LMSR state after closing, or null for an order-book event, which has no price curve. */
     public EventStateDto getFinalState() { return finalState; }
 }

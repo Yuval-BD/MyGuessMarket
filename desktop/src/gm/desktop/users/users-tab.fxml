@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<SplitPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="gm.desktop.users.UsersTabController"
+           dividerPositions="0.3">
+
+    <items>
+        <VBox spacing="8.0" minWidth="220.0">
+            <padding>
+                <Insets top="8.0" right="8.0" bottom="8.0" left="8.0"/>
+            </padding>
+            <Label text="Users" style="-fx-font-weight: bold;"/>
+            <TableView fx:id="usersTable">
+                <VBox.vgrow>
+                    <Priority fx:constant="ALWAYS"/>
+                </VBox.vgrow>
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+                </columnResizePolicy>
+                <columns>
+                    <TableColumn fx:id="userNameColumn" text="Name" prefWidth="110.0"/>
+                    <TableColumn fx:id="userBalanceColumn" text="Balance" prefWidth="90.0"/>
+                    <TableColumn fx:id="userStateColumn" text="State" prefWidth="70.0"/>
+                </columns>
+                <placeholder>
+                    <Label text="No users loaded."/>
+                </placeholder>
+            </TableView>
+        </VBox>
+
+        <VBox spacing="8.0" minWidth="360.0">
+            <padding>
+                <Insets top="8.0" right="8.0" bottom="8.0" left="8.0"/>
+            </padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="10.0">
+                <Label fx:id="selectedUserLabel" style="-fx-font-size: 15px; -fx-font-weight: bold;"/>
+                <Region>
+                    <HBox.hgrow>
+                        <Priority fx:constant="ALWAYS"/>
+                    </HBox.hgrow>
+                </Region>
+                <Label fx:id="balanceLabel" style="-fx-font-size: 15px; -fx-font-weight: bold;"/>
+            </HBox>
+            <Label fx:id="commissionEarnedLabel"/>
+
+            <Label text="Events owned, joined, or open to trade" style="-fx-font-weight: bold;"/>
+            <TableView fx:id="involvementsTable" prefHeight="180.0" minHeight="160.0">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+                </columnResizePolicy>
+                <columns>
+                    <TableColumn fx:id="involvementEventColumn" text="Event" prefWidth="160.0"/>
+                    <TableColumn fx:id="involvementRoleColumn" text="Role" prefWidth="90.0"/>
+                    <TableColumn fx:id="involvementStatusColumn" text="Status" prefWidth="85.0"/>
+                    <TableColumn fx:id="involvementHoldingsColumn" text="Holdings" prefWidth="170.0"/>
+                    <TableColumn fx:id="involvementResultColumn" text="Net" prefWidth="80.0"/>
+                </columns>
+                <placeholder>
+                    <Label text="This user is not involved in any event yet."/>
+                </placeholder>
+            </TableView>
+
+            <fx:include fx:id="userEventDetails" source="../eventdetails/event-details.fxml"
+                        VBox.vgrow="ALWAYS"/>
+        </VBox>
+    </items>
+
+</SplitPane>

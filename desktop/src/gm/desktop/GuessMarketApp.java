@@ -1,5 +1,8 @@
 package gm.desktop;
 
+import gm.desktop.app.AppController;
+import gm.engine.GuessMarketEngine;
+import gm.engine.GuessMarketEngineImpl;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -9,15 +12,17 @@ import javafx.stage.Stage;
 import java.net.URL;
 
 /**
- * The JavaFX application. Owns the primary stage and loads the root FXML.
+ * The JavaFX application, and the composition root of the desktop module: the one place that names
+ * a concrete engine implementation. Everything below here works against the GuessMarketEngine
+ * interface, which is what lets the same engine sit behind the smoke test and, later, a server.
  */
 public class GuessMarketApp extends Application {
 
     private static final String APP_FXML = "/gm/desktop/app/app.fxml";
     private static final String TITLE = "Guess Market";
 
-    private static final double INITIAL_WIDTH = 1000;
-    private static final double INITIAL_HEIGHT = 650;
+    private static final double INITIAL_WIDTH = 1100;
+    private static final double INITIAL_HEIGHT = 700;
     private static final double MIN_WIDTH = 640;
     private static final double MIN_HEIGHT = 480;
 
@@ -30,7 +35,13 @@ public class GuessMarketApp extends Application {
                             + "Check that IntelliJ is copying *.fxml files into the module output.");
         }
 
-        Parent root = FXMLLoader.load(fxmlLocation);
+        FXMLLoader loader = new FXMLLoader(fxmlLocation);
+        Parent root = loader.load();
+
+        GuessMarketEngine engine = new GuessMarketEngineImpl();
+        AppController controller = loader.getController();
+        controller.setEngine(engine);
+        controller.setOwnerWindow(stage);
 
         stage.setTitle(TITLE);
         stage.setScene(new Scene(root, INITIAL_WIDTH, INITIAL_HEIGHT));

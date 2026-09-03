@@ -3,6 +3,8 @@ package gm.smoke;
 import gm.engine.GuessMarketEngine;
 import gm.engine.GuessMarketEngineImpl;
 import gm.engine.dto.CloseResultDto;
+import gm.engine.dto.OrderResultDto;
+import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.EventDto;
 import gm.engine.dto.EventStateDto;
 import gm.engine.dto.OptionStateDto;
@@ -36,7 +38,14 @@ public final class SmokeMain {
     private static final long QUANTITY = 100;
 
     /** Tikva 10000 + Menash 100 + Avrum 1000. Money only moves, so this total never changes. */
-    private static final double TOTAL_CASH_IN_SYSTEM = 11100.00;
+    private static final double LMSR_TOTAL_CASH = 11100.00;
+
+    /** The simulator's four traders: Zoe 500 + Alice 200 + Bob 200 + Carol 200. */
+    private static final String CLOB_XML_NAME = "clob-sim.xml";
+    private static final double CLOB_TOTAL_CASH = 1100.00;
+    private static final int CLOB_EVENT_ID = 1;
+    private static final int YES = 1;
+    private static final int NO = 2;
 
     private static final double TOLERANCE = 0.01;
 
@@ -53,6 +62,7 @@ public final class SmokeMain {
         try {
             runScenario(engine, xmlPath);
             runRejectionScenario(engine);
+            runOrderBookScenario();
         } catch (GuessMarketException e) {
             System.out.println();
             System.out.println("ABORTED - the engine rejected something: " + e.getMessage());
@@ -169,6 +179,101 @@ public final class SmokeMain {
         }
     }
 
+    /**
+     * Replays the professor's CLOB simulation move for move, on a fresh engine.
+     * <p>
+     * Every figure checked here comes from the simulator's own ledger, so this is the closest thing
+     * to an authoritative test of the matching engine: resting-price execution, a sell walking two
+     * bids, a partial fill, a peer-to-peer mint, and the commission going to the market maker.
+     */
+    private static void runOrderBookScenario() {
+        GuessMarketEngine engine = new GuessMarketEngineImpl();
+        String path = XML_FOLDER + CLOB_XML_NAME;
+
+        heading("ORDER BOOK - replaying the professor's simulation");
+        engine.loadEventsFromFile(path);
+        checkConservation(engine, "at the start", CLOB_TOTAL_CASH);
+
+        // Step 1: Zoe deposits $100 and receives 100 pairs.
+        engine.openEvent(CLOB_EVENT_ID, "Zoe");
+        check("Zoe after minting 100 pairs", balanceOf(engine, "Zoe"), 400.00);
+        check("event account holds the deposit", accountOf(engine, CLOB_EVENT_ID), 100.00);
+
+        // Steps 2-6: the book fills up with orders that cannot cross.
+        resting(engine, "Bob   bids  20 Yes @0.50", "Bob", YES, OrderSideDto.BUY, 20, 0.50, 20);
+        resting(engine, "Carol bids  15 Yes @0.48", "Carol", YES, OrderSideDto.BUY, 15, 0.48, 15);
+        resting(engine, "Zoe   asks  25 Yes @0.58", "Zoe", YES, OrderSideDto.SELL, 25, 0.58, 25);
+        resting(engine, "Zoe   asks  15 Yes @0.65", "Zoe", YES, OrderSideDto.SELL, 15, 0.65, 15);
+
+        // Steps 7-8: Alice lifts the cheap ask. A plain resale - Zoe keeps the money.
+        heading("Alice buys 25 Yes @0.58 - matches Zoe's ask");
+        OrderResultDto lift = engine.submitOrder(CLOB_EVENT_ID, "Alice", YES, OrderSideDto.BUY, 25, 0.58);
+        check("filled", lift.getFilledQuantity(), 25);
+        check("Alice spent 14.50 + 0.145 commission", lift.getTotalSpent(), 14.65);
+        check("Alice balance", balanceOf(engine, "Alice"), 185.36);
+        check("Zoe collected sale plus commission", balanceOf(engine, "Zoe"), 414.65);
+        check("event account untouched by a resale", accountOf(engine, CLOB_EVENT_ID), 100.00);
+        checkConservation(engine, "after the resale", CLOB_TOTAL_CASH);
+
+        // Steps 9-11: the same on the No book, leaving Zoe's ask partly filled.
+        resting(engine, "Zoe   asks  50 No  @0.45", "Zoe", NO, OrderSideDto.SELL, 50, 0.45, 50);
+        heading("Bob buys 25 No @0.45 - a partial fill of Zoe's ask");
+        OrderResultDto partial = engine.submitOrder(CLOB_EVENT_ID, "Bob", NO, OrderSideDto.BUY, 25, 0.45);
+        check("filled", partial.getFilledQuantity(), 25);
+        check("Bob balance", balanceOf(engine, "Bob"), 188.64);
+
+        // Steps 12-13: Zoe's sell walks two bids and beats her own floor price.
+        heading("Zoe sells 30 Yes @0.45 - walks Bob's 0.50 then Carol's 0.48");
+        OrderResultDto walk = engine.submitOrder(CLOB_EVENT_ID, "Zoe", YES, OrderSideDto.SELL, 30, 0.45);
+        check("filled", walk.getFilledQuantity(), 30);
+        check("two fills at two prices", walk.getExecutions().size(), 2);
+        // 20 x 0.50 + 10 x 0.48 = 14.80, better than the 0.45 she would have accepted.
+        check("Zoe received", walk.getTotalReceived(), 14.80);
+        check("Bob balance", balanceOf(engine, "Bob"), 178.54);
+        check("Carol balance", balanceOf(engine, "Carol"), 195.15);
+
+        // Step 14: Carol's No bid is too low to cross and too low to mint (0.42 + 0.48 < 1.00).
+        resting(engine, "Carol bids  35 No  @0.42", "Carol", NO, OrderSideDto.BUY, 35, 0.42, 35);
+
+        // Steps 15-16: Alice's bid plus Carol's resting bid clear the base value, so pairs are minted.
+        heading("Alice buys 40 Yes @0.62 - mints 35 pairs against Carol's 0.42 bid");
+        OrderResultDto mint = engine.submitOrder(CLOB_EVENT_ID, "Alice", YES, OrderSideDto.BUY, 40, 0.62);
+        check("minted", mint.getFilledQuantity(), 35);
+        check("remainder rests", mint.getRestingQuantity(), 5);
+        check("it was a mint, not a trade", mint.getExecutions().get(0).isMint() ? 1 : 0, 1);
+        // Carol rested first so her 0.42 stands; Alice pays the complement 0.58, under her 0.62 limit.
+        check("Alice paid the complement, not her limit",
+                mint.getExecutions().get(0).getPartyPrice(), 0.58);
+        check("Carol was honoured at her own price",
+                mint.getExecutions().get(0).getCounterpartyPrice(), 0.42);
+        check("both payments went to the event account",
+                accountOf(engine, CLOB_EVENT_ID), 135.00);
+        check("Alice balance", balanceOf(engine, "Alice"), 164.85);
+        check("Carol balance", balanceOf(engine, "Carol"), 180.31);
+        checkConservation(engine, "after the mint", CLOB_TOTAL_CASH);
+
+        // Step 18: Yes wins. 135 pairs exist, so 135 shares are paid out and the account empties.
+        heading("Zoe closes the event, Yes wins");
+        CloseResultDto close = engine.closeEvent(CLOB_EVENT_ID, "Zoe", YES);
+        check("paid out to winners", close.getTotalPaidToWinners(), 135.00);
+        check("event account emptied", accountOf(engine, CLOB_EVENT_ID), 0.00);
+
+        heading("Final balances - these are the simulator's own numbers");
+        check("Zoe", balanceOf(engine, "Zoe"), 486.31);
+        check("Alice", balanceOf(engine, "Alice"), 224.85);
+        check("Bob", balanceOf(engine, "Bob"), 198.54);
+        check("Carol", balanceOf(engine, "Carol"), 190.31);
+        checkConservation(engine, "after resolution", CLOB_TOTAL_CASH);
+    }
+
+    /** Submits an order expected to find no match and simply join the book. */
+    private static void resting(GuessMarketEngine engine, String label, String user, int option,
+                                OrderSideDto side, long quantity, double price, long expectedResting) {
+        OrderResultDto result =
+                engine.submitOrder(CLOB_EVENT_ID, user, option, side, quantity, price);
+        check(label, result.getRestingQuantity(), expectedResting);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static void printOptionStates(GuessMarketEngine engine) {
@@ -203,6 +308,10 @@ public final class SmokeMain {
      * reverse), and every balance downstream of it is already wrong.
      */
     private static void checkConservation(GuessMarketEngine engine, String when) {
+        checkConservation(engine, when, LMSR_TOTAL_CASH);
+    }
+
+    private static void checkConservation(GuessMarketEngine engine, String when, double expectedTotal) {
         double total = 0;
         for (UserDto user : engine.getAllUsers()) {
             total += user.getBalance();
@@ -210,7 +319,7 @@ public final class SmokeMain {
         for (EventDto event : engine.getAllEvents()) {
             total += event.getAccountBalance();
         }
-        check("money conserved " + when, total, TOTAL_CASH_IN_SYSTEM);
+        check("money conserved " + when, total, expectedTotal);
     }
 
     private static void heading(String title) {

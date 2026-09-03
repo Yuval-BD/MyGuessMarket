@@ -3,8 +3,11 @@ package gm.engine;
 import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.EventDto;
 import gm.engine.dto.EventStateDto;
+import gm.engine.dto.OrderResultDto;
+import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.PurchaseResultDto;
 import gm.engine.dto.UserDto;
+import gm.engine.dto.UserInvolvementDto;
 
 import java.util.List;
 
@@ -42,6 +45,15 @@ public interface GuessMarketEngine {
 
     UserDto getUser(String userName);
 
+    /**
+     * Every event this user runs, has acted in, or may currently act in, with their holdings.
+     * <p>
+     * Derived by scanning the events rather than stored on the user: participations live on the
+     * event, which is the single source of truth, and there are few enough events that scanning
+     * costs nothing.
+     */
+    List<UserInvolvementDto> getUserInvolvements(String userName);
+
     // ---------------------------------------------------------------- events
 
     List<EventDto> getAllEvents();
@@ -67,4 +79,11 @@ public interface GuessMarketEngine {
 
     /** Buys shares in an LMSR event on behalf of a user. Option numbers are 1-based. */
     PurchaseResultDto buyLmsrShares(int eventId, String userName, int optionNumber, long quantity);
+
+    /**
+     * Submits an order to an order-book event on behalf of a user. Option numbers are 1-based, and
+     * the price is per share.
+     */
+    OrderResultDto submitOrder(int eventId, String userName, int optionNumber,
+                               OrderSideDto side, long quantity, double pricePerShare);
 }

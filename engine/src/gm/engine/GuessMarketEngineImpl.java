@@ -4,17 +4,24 @@ import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.DtoMapper;
 import gm.engine.dto.EventDto;
 import gm.engine.dto.EventStateDto;
+import gm.engine.dto.OrderResultDto;
+import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.PurchaseResultDto;
 import gm.engine.dto.UserDto;
+import gm.engine.dto.UserInvolvementDto;
 import gm.engine.exception.NoFileLoadedException;
 import gm.engine.model.ClosingOutcome;
 import gm.engine.model.Event;
 import gm.engine.model.EventOption;
 import gm.engine.model.GuessMarketSystem;
+import gm.engine.model.Participation;
 import gm.engine.model.Trade;
 import gm.engine.model.User;
+import gm.engine.orderbook.OrderResult;
+import gm.engine.orderbook.OrderSide;
 import gm.engine.xml.XmlEventLoader;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -60,6 +67,24 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
+    public List<UserInvolvementDto> getUserInvolvements(String userName) {
+        GuessMarketSystem loaded = requireSystem();
+        User user = loaded.getUser(userName);
+
+        List<UserInvolvementDto> involvements = new ArrayList<>();
+        for (Event event : loaded.getEvents()) {
+            Participation participation = event.getParticipation(user.getName());
+            boolean isMarketMaker = event.getMarketMaker() == user;
+            // Active events are listed even for someone who has never acted in them - otherwise a
+            // user with no history has no way to reach an event and can never start trading.
+            if (participation != null || isMarketMaker || event.isActive()) {
+                involvements.add(DtoMapper.toInvolvementDto(event, participation, isMarketMaker));
+            }
+        }
+        return involvements;
+    }
+
+    @Override
     public List<EventDto> getAllEvents() {
         return DtoMapper.toEventDtos(requireSystem().getEvents());
     }
@@ -96,6 +121,18 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
 
         Trade trade = event.buyLmsr(buyer, optionNumber, quantity);
         return DtoMapper.toPurchaseResultDto(trade, buyer, event);
+    }
+
+    @Override
+    public OrderResultDto submitOrder(int eventId, String userName, int optionNumber,
+                                      OrderSideDto side, long quantity, double pricePerShare) {
+        GuessMarketSystem loaded = requireSystem();
+        Event event = loaded.getEvent(eventId);
+        User user = loaded.getUser(userName);
+
+        OrderSide modelSide = side == OrderSideDto.BUY ? OrderSide.BUY : OrderSide.SELL;
+        OrderResult result = event.submitOrder(user, optionNumber, modelSide, quantity, pricePerShare);
+        return DtoMapper.toOrderResultDto(result);
     }
 
     private GuessMarketSystem requireSystem() {
