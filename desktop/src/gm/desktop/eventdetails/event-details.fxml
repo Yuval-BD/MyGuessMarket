@@ -31,6 +31,10 @@
             <VBox fx:id="actionBox" spacing="8.0" visible="false" managed="false">
                 <Separator/>
 
+                <!-- Only shown for a blocked user; the controls below are disabled at the same time. -->
+                <Label fx:id="blockedLabel" wrapText="true" visible="false" managed="false"
+                       style="-fx-font-weight: bold;"/>
+
                 <FlowPane fx:id="lifecycleBar" hgap="8.0" vgap="6.0">
                     <Button fx:id="openButton" text="Open event" onAction="#onOpenClicked"/>
                     <Button fx:id="closeButton" text="Close event" onAction="#onCloseClicked"/>

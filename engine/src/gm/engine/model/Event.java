@@ -124,6 +124,11 @@ public class Event {
                     "Error: event \"%s\" - \"%s\" is not one of this event's options.",
                     name, winner == null ? "" : winner.getName()));
         }
+        // Deliberately no requireNotBlocked here, unlike open() and both trading methods.
+        // Blocking stops a user taking on new risk; closing takes none - it pays the winners and
+        // hands the leftover back. If a blocked market maker could not close, every participant's
+        // money would stay locked in the event account forever, punishing people who did nothing
+        // wrong. This asymmetry is written up in the README.
 
         double payoutPerShare = payoutPerShare();
         double totalPaidToWinners = 0;

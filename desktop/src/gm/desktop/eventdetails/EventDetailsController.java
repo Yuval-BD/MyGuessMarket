@@ -18,10 +18,12 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.FlowPane;
@@ -57,6 +59,7 @@ public class EventDetailsController {
     @FXML private TextField quantityField;
     @FXML private Button buyButton;
     @FXML private Label messageLabel;
+    @FXML private Label blockedLabel;
 
     @FXML private VBox lmsrBox;
     @FXML private VBox orderBookBox;
@@ -337,6 +340,12 @@ public class EventDetailsController {
             // Every rule violation arrives here carrying a message written for the person reading
             // it, so it is shown as-is rather than translated.
             message = e.getMessage();
+        } catch (RuntimeException e) {
+            // Not a rule violation - a defect. It must not vanish into the console with the window
+            // looking as though nothing happened, so it is shown and also printed for debugging.
+            e.printStackTrace();
+            showUnexpectedError(e);
+            message = "Something went wrong inside the application. See the dialog for details.";
         }
 
         refresh();
@@ -345,6 +354,20 @@ public class EventDetailsController {
         // Set the message last. The refresh above ripples out to the surrounding tabs, which
         // re-select rows and can re-enter this panel - anything written before that can be lost.
         messageLabel.setText(message);
+    }
+
+    /** Only ever reached by a defect: rule violations are GuessMarketExceptions and never land here. */
+    private void showUnexpectedError(RuntimeException failure) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.initOwner(titleLabel.getScene() == null ? null : titleLabel.getScene().getWindow());
+        alert.setTitle("Unexpected error");
+        alert.setHeaderText("The action could not be completed.");
+        alert.setGraphic(null);
+        alert.getDialogPane().setContent(new TextArea(
+                failure.getClass().getSimpleName()
+                        + (failure.getMessage() == null ? "" : ": " + failure.getMessage())));
+        alert.getDialogPane().setPrefWidth(520);
+        alert.showAndWait();
     }
 
     @FunctionalInterface
@@ -366,7 +389,20 @@ public class EventDetailsController {
         boolean notStarted = event.getStatus() == EventStatusDto.NOT_STARTED;
         boolean active = event.getStatus() == EventStatusDto.ACTIVE;
 
-        openButton.setDisable(!isMarketMaker || !notStarted);
+        // A blocked user is stopped by the engine anyway. Saying so up front, and greying out what
+        // cannot work, is friendlier than letting them fill in an order and refusing it afterwards.
+        boolean blocked = engine.getUser(actingUserName).isBlocked();
+        blockedLabel.setText(blocked
+                ? actingUserName + " went into a negative balance and is blocked from trading "
+                        + "anywhere in the system."
+                : "");
+        setSectionVisible(blockedLabel, blocked);
+
+        boolean canTrade = active && !blocked;
+
+        openButton.setDisable(!isMarketMaker || !notStarted || blocked);
+        // Closing is allowed even when blocked: it only pays money out, and a locked event would
+        // trap everyone else's money too.
         closeButton.setDisable(!isMarketMaker || !active);
         winnerChoice.setDisable(!isMarketMaker || !active);
 
@@ -374,15 +410,15 @@ public class EventDetailsController {
         setSectionVisible(buyBar, !isOrderBook);
         setSectionVisible(orderBar, isOrderBook);
 
-        buyOptionChoice.setDisable(!active);
-        quantityField.setDisable(!active);
-        buyButton.setDisable(!active);
+        buyOptionChoice.setDisable(!canTrade);
+        quantityField.setDisable(!canTrade);
+        buyButton.setDisable(!canTrade);
 
-        orderSideChoice.setDisable(!active);
-        orderOptionChoice.setDisable(!active);
-        orderQuantityField.setDisable(!active);
-        orderPriceField.setDisable(!active);
-        submitOrderButton.setDisable(!active);
+        orderSideChoice.setDisable(!canTrade);
+        orderOptionChoice.setDisable(!canTrade);
+        orderQuantityField.setDisable(!canTrade);
+        orderPriceField.setDisable(!canTrade);
+        submitOrderButton.setDisable(!canTrade);
 
         // The winner choice always needs the option names; the LMSR buy row only exists for LMSR
         // events, and the order row takes its names from the event rather than from price state.
@@ -468,7 +504,11 @@ public class EventDetailsController {
         orderBookViewController.show(null);
     }
 
-    private static void setSectionVisible(javafx.scene.layout.Pane box, boolean visible) {
+    /**
+     * Hides a control and takes it out of the layout, so the rows below close up instead of leaving
+     * a gap. Takes a Node rather than a Pane because single labels are hidden this way too.
+     */
+    private static void setSectionVisible(javafx.scene.Node box, boolean visible) {
         box.setVisible(visible);
         box.setManaged(visible);
     }

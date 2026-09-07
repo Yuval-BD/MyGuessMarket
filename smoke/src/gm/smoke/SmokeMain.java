@@ -63,6 +63,7 @@ public final class SmokeMain {
             runScenario(engine, xmlPath);
             runRejectionScenario(engine);
             runOrderBookScenario();
+            runBlockedUserScenario();
         } catch (GuessMarketException e) {
             System.out.println();
             System.out.println("ABORTED - the engine rejected something: " + e.getMessage());
@@ -266,6 +267,68 @@ public final class SmokeMain {
         checkConservation(engine, "after resolution", CLOB_TOTAL_CASH);
     }
 
+    /**
+     * The one path no other scenario reaches: a user goes overdrawn and is blocked.
+     * <p>
+     * Nothing is charged while an order rests, and affordability is checked against the whole
+     * balance each time, so two orders that are each affordable alone can together commit more
+     * money than the user owns. When both are filled the second one overdraws them. That is the
+     * case the exercise wants allowed rather than prevented - the money has to move, because the
+     * counterparty's shares are already gone - and the debt is then punished by blocking.
+     */
+    private static void runBlockedUserScenario() {
+        GuessMarketEngine engine = new GuessMarketEngineImpl();
+
+        heading("BLOCKED USER - a resting bid filled after the money has been committed twice");
+        engine.loadEventsFromFile(XML_FOLDER + CLOB_XML_NAME);
+        engine.openEvent(CLOB_EVENT_ID, "Zoe");
+
+        // 200 @0.60 would cost 121.20 and 200 @0.55 would cost 111.10. Carol has 200: either order
+        // alone is affordable, both together are not.
+        resting(engine, "Carol bids 200 Yes @0.60", "Carol", YES, OrderSideDto.BUY, 200, 0.60, 200);
+        resting(engine, "Carol bids 200 Yes @0.55", "Carol", YES, OrderSideDto.BUY, 200, 0.55, 200);
+        check("resting orders cost nothing yet", balanceOf(engine, "Carol"), 200.00);
+        checkFlag("Carol not blocked yet", engine.getUser("Carol").isBlocked(), false);
+
+        // Bob's No bid crosses both: 0.45 + 0.60 and 0.45 + 0.55 each reach the $1 base value.
+        // Each resting bid is honoured at its own price and Bob pays whatever completes the dollar,
+        // so he pays 0.40 against the first and 0.45 against the second - never above his limit.
+        heading("Bob bids 400 No @0.45 - mints against both of Carol's bids");
+        OrderResultDto mint =
+                engine.submitOrder(CLOB_EVENT_ID, "Bob", NO, OrderSideDto.BUY, 400, 0.45);
+        check("both bids consumed", mint.getFilledQuantity(), 400);
+        check("two mints, not one", mint.getExecutions().size(), 2);
+        check("Bob paid 80.80 + 90.90", mint.getTotalSpent(), 171.70);
+        check("Bob balance", balanceOf(engine, "Bob"), 28.30);
+
+        // 200 - 121.20 = 78.80, and the second fill takes 111.10 from that.
+        check("Carol is overdrawn", balanceOf(engine, "Carol"), -32.30);
+        checkFlag("Carol is now blocked", engine.getUser("Carol").isBlocked(), true);
+        check("every dollar paid reached the event account", accountOf(engine, CLOB_EVENT_ID), 500.00);
+        check("Zoe collected 4.00 commission", balanceOf(engine, "Zoe"), 404.00);
+        checkConservation(engine, "after the overdraft", CLOB_TOTAL_CASH);
+
+        heading("What a blocked user may and may not do");
+        expectRefusal("blocked: cannot buy", () ->
+                engine.submitOrder(CLOB_EVENT_ID, "Carol", NO, OrderSideDto.BUY, 1, 0.10));
+        expectRefusal("blocked: cannot sell what she owns", () ->
+                engine.submitOrder(CLOB_EVENT_ID, "Carol", YES, OrderSideDto.SELL, 10, 0.90));
+
+        // Closing is not blocked for anyone: it only pays money out. Carol owns 400 of the 500
+        // winning shares, so resolution is also what clears her debt.
+        heading("Zoe closes the event, Yes wins");
+        CloseResultDto close = engine.closeEvent(CLOB_EVENT_ID, "Zoe", YES);
+        check("paid out to winners", close.getTotalPaidToWinners(), 500.00);
+        check("event account emptied", accountOf(engine, CLOB_EVENT_ID), 0.00);
+        check("Carol back in the black", balanceOf(engine, "Carol"), 367.70);
+        check("Zoe", balanceOf(engine, "Zoe"), 504.00);
+        check("Bob keeps 400 worthless No shares", balanceOf(engine, "Bob"), 28.30);
+        checkConservation(engine, "after resolution", CLOB_TOTAL_CASH);
+
+        // Blocking is deliberately permanent: the balance recovering does not undo it.
+        checkFlag("still blocked after the payout", engine.getUser("Carol").isBlocked(), true);
+    }
+
     /** Submits an order expected to find no match and simply join the book. */
     private static void resting(GuessMarketEngine engine, String label, String user, int option,
                                 OrderSideDto side, long quantity, double price, long expectedResting) {
@@ -325,6 +388,32 @@ public final class SmokeMain {
     private static void heading(String title) {
         System.out.println();
         System.out.println("== " + title);
+    }
+
+    /** Same report line as check(), for the things that are true or false rather than an amount. */
+    private static void checkFlag(String label, boolean actual, boolean expected) {
+        checksRun++;
+        boolean ok = actual == expected;
+        if (!ok) {
+            checksFailed++;
+        }
+        System.out.printf("  [%s] %-38s expected %10s   got %10s%n",
+                ok ? "OK  " : "FAIL", label, expected, actual);
+    }
+
+    /**
+     * Passes only when the engine refuses. A rule that is not enforced is worse than one that does
+     * not exist, so the refusals are checked as carefully as the successes.
+     */
+    private static void expectRefusal(String label, Runnable action) {
+        checksRun++;
+        try {
+            action.run();
+            checksFailed++;
+            System.out.printf("  [FAIL] %-38s expected a refusal, but it went through%n", label);
+        } catch (GuessMarketException e) {
+            System.out.printf("  [OK  ] %-38s %s%n", label, e.getMessage());
+        }
     }
 
     private static void check(String label, double actual, double expected) {
