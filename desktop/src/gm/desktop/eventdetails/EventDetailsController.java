@@ -1,11 +1,14 @@
 package gm.desktop.eventdetails;
 
+import gm.desktop.orderbook.OrderBookViewController;
 import gm.engine.GuessMarketEngine;
 import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.EventDto;
 import gm.engine.dto.EventStateDto;
 import gm.engine.dto.EventStatusDto;
 import gm.engine.dto.OptionStateDto;
+import gm.engine.dto.OrderResultDto;
+import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.PurchaseResultDto;
 import gm.engine.dto.TradeDto;
 import gm.engine.dto.TradingMethodTypeDto;
@@ -16,11 +19,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 
 import java.util.List;
@@ -53,6 +57,19 @@ public class EventDetailsController {
     @FXML private TextField quantityField;
     @FXML private Button buyButton;
     @FXML private Label messageLabel;
+
+    @FXML private VBox lmsrBox;
+    @FXML private VBox orderBookBox;
+    @FXML private FlowPane buyBar;
+    @FXML private FlowPane orderBar;
+    @FXML private ChoiceBox<String> orderSideChoice;
+    @FXML private ChoiceBox<String> orderOptionChoice;
+    @FXML private TextField orderQuantityField;
+    @FXML private TextField orderPriceField;
+    @FXML private Button submitOrderButton;
+
+    /** Injected by the fx:include with fx:id "orderBookView". */
+    @FXML private OrderBookViewController orderBookViewController;
 
     @FXML private TableView<OptionStateDto> optionsTable;
     @FXML private TableColumn<OptionStateDto, String> optionNameColumn;
@@ -96,6 +113,9 @@ public class EventDetailsController {
         tradeCommissionColumn.setCellValueFactory(cell -> text(money(cell.getValue().getCommissionPaid())));
         tradeTotalColumn.setCellValueFactory(cell -> text(money(cell.getValue().getTotalPaid())));
 
+        orderSideChoice.getItems().setAll("Buy", "Sell");
+        orderSideChoice.setValue("Buy");
+
         showNothing();
     }
 
@@ -113,9 +133,18 @@ public class EventDetailsController {
      * @param actingUserName the user acting here, or null for a read-only view
      */
     public void showEvent(Integer eventId, String actingUserName) {
+        // Only wipe the last result when the panel actually moves to a different event or a
+        // different person. A refresh after an action re-selects the same row and lands here again;
+        // clearing unconditionally would erase the message that action just produced.
+        boolean sameTarget = java.util.Objects.equals(this.eventId, eventId)
+                && java.util.Objects.equals(this.actingUserName, actingUserName);
+
         this.eventId = eventId;
         this.actingUserName = actingUserName;
-        messageLabel.setText("");
+        if (!sameTarget) {
+            messageLabel.setText("");
+            clearInputFields();
+        }
         refresh();
     }
 
@@ -142,10 +171,11 @@ public class EventDetailsController {
         descriptionLabel.setText(event.getDescription());
 
         if (event.getMethodType() == TradingMethodTypeDto.ORDER_BOOK) {
-            showOrderBookNotYetSupported(event);
+            showOrderBook(event);
             return;
         }
 
+        showLmsr();
         EventStateDto state = engine.getEventState(eventId);
         optionRows.setAll(state.getOptionStates());
         tradeRows.setAll(state.getTrades());
@@ -220,19 +250,101 @@ public class EventDetailsController {
         });
     }
 
+    @FXML
+    private void onSubmitOrderClicked() {
+        Integer optionNumber = selectedOptionNumber(orderOptionChoice);
+        if (optionNumber == null) {
+            messageLabel.setText("Choose which option to trade first.");
+            return;
+        }
+
+        long quantity;
+        double price;
+        try {
+            quantity = Long.parseLong(orderQuantityField.getText().trim());
+        } catch (NumberFormatException e) {
+            messageLabel.setText("Quantity must be a whole number, for example 25.");
+            return;
+        }
+        try {
+            price = Double.parseDouble(orderPriceField.getText().trim());
+        } catch (NumberFormatException e) {
+            messageLabel.setText("Price must be a number, for example 0.58.");
+            return;
+        }
+        if (quantity <= 0) {
+            messageLabel.setText("Quantity must be greater than zero.");
+            return;
+        }
+
+        OrderSideDto side = "Sell".equals(orderSideChoice.getValue())
+                ? OrderSideDto.SELL : OrderSideDto.BUY;
+
+        run(() -> {
+            OrderResultDto result = engine.submitOrder(
+                    eventId, actingUserName, optionNumber, side, quantity, price);
+            orderQuantityField.clear();
+            orderPriceField.clear();
+            return describeOrderResult(result);
+        });
+    }
+
+    /** Says what actually happened, since an order can partly fill, fully fill, mint, or just rest. */
+    private String describeOrderResult(OrderResultDto result) {
+        StringBuilder message = new StringBuilder();
+        if (result.getFilledQuantity() > 0) {
+            message.append(String.format("Executed %d of %d shares.",
+                    result.getFilledQuantity(), result.getRequestedQuantity()));
+            for (var execution : result.getExecutions()) {
+                message.append(String.format("%n  %s %d at $%.2f with %s%s",
+                        execution.isMint() ? "Minted" : "Traded",
+                        execution.getQuantity(),
+                        execution.getPartyPrice(),
+                        execution.getCounterpartyName(),
+                        execution.isMint()
+                                ? String.format(" (who paid $%.2f for %s)",
+                                        execution.getCounterpartyPrice(),
+                                        execution.getCounterpartyOptionName())
+                                : ""));
+            }
+        } else {
+            message.append("Nothing matched.");
+        }
+        if (result.getRestingQuantity() > 0) {
+            message.append(String.format("%n%d shares are resting in the book.",
+                    result.getRestingQuantity()));
+        }
+        if (result.getTotalSpent() > 0) {
+            message.append(String.format("%nSpent %s including %s commission.",
+                    money(result.getTotalSpent()), money(result.getCommissionPaid())));
+        }
+        if (result.getTotalReceived() > 0) {
+            message.append(String.format("%nReceived %s.", money(result.getTotalReceived())));
+        }
+        return message.toString();
+    }
+
     /**
      * Runs an engine command, reports what happened, and refreshes. Every rule violation arrives
      * here as a GuessMarketException carrying a message written for the person reading it, so it is
      * shown as-is rather than translated.
      */
     private void run(EngineCommand command) {
+        String message;
         try {
-            messageLabel.setText(command.execute());
+            message = command.execute();
         } catch (GuessMarketException e) {
-            messageLabel.setText(e.getMessage());
+            // Every rule violation arrives here carrying a message written for the person reading
+            // it, so it is shown as-is rather than translated.
+            message = e.getMessage();
         }
+
         refresh();
         onChanged.run();
+
+        // Set the message last. The refresh above ripples out to the surrounding tabs, which
+        // re-select rows and can re-enter this panel - anything written before that can be lost.
+        messageLabel.setText(message);
     }
 
     @FunctionalInterface
@@ -258,12 +370,37 @@ public class EventDetailsController {
         closeButton.setDisable(!isMarketMaker || !active);
         winnerChoice.setDisable(!isMarketMaker || !active);
 
+        boolean isOrderBook = event.getMethodType() == TradingMethodTypeDto.ORDER_BOOK;
+        setSectionVisible(buyBar, !isOrderBook);
+        setSectionVisible(orderBar, isOrderBook);
+
         buyOptionChoice.setDisable(!active);
         quantityField.setDisable(!active);
         buyButton.setDisable(!active);
 
-        fillOptionChoice(winnerChoice, options);
-        fillOptionChoice(buyOptionChoice, options);
+        orderSideChoice.setDisable(!active);
+        orderOptionChoice.setDisable(!active);
+        orderQuantityField.setDisable(!active);
+        orderPriceField.setDisable(!active);
+        submitOrderButton.setDisable(!active);
+
+        // The winner choice always needs the option names; the LMSR buy row only exists for LMSR
+        // events, and the order row takes its names from the event rather than from price state.
+        fillOptionChoiceFromNames(winnerChoice, event.getOptionNames());
+        fillOptionChoiceFromNames(orderOptionChoice, event.getOptionNames());
+        if (!isOrderBook) {
+            fillOptionChoice(buyOptionChoice, options);
+        }
+    }
+
+    private void fillOptionChoiceFromNames(ChoiceBox<String> choice, List<String> names) {
+        String previous = choice.getValue();
+        choice.getItems().setAll(names);
+        if (previous != null && names.contains(previous)) {
+            choice.setValue(previous);
+        } else if (!names.isEmpty()) {
+            choice.setValue(names.get(0));
+        }
     }
 
     /** Keeps the current pick if it is still one of the options, so a refresh does not reset it. */
@@ -284,6 +421,17 @@ public class EventDetailsController {
         return index < 0 ? null : index + 1;
     }
 
+    /**
+     * Empties the typed-in fields. A quantity or price belongs to the event and the person it was
+     * typed for, so it is wiped when the panel moves to a different one - otherwise a number left
+     * over from an earlier event sits there looking like a suggestion.
+     */
+    private void clearInputFields() {
+        quantityField.clear();
+        orderQuantityField.clear();
+        orderPriceField.clear();
+    }
+
     private void showNothing() {
         titleLabel.setText("Select an event to see its details.");
         subtitleLabel.setText("");
@@ -297,14 +445,32 @@ public class EventDetailsController {
         actionBox.setManaged(false);
     }
 
-    private void showOrderBookNotYetSupported(EventDto event) {
+    /** Order book events show two books and their participants instead of a price curve. */
+    private void showOrderBook(EventDto event) {
+        setSectionVisible(lmsrBox, false);
+        setSectionVisible(orderBookBox, true);
         optionRows.clear();
         tradeRows.clear();
+
+        orderBookViewController.show(engine.getOrderBookState(eventId));
+
         accountLabel.setText("Event account: " + money(event.getAccountBalance()));
         commissionLabel.setText("");
-        winnerLabel.setText("The order book view arrives in a later phase.");
-        actionBox.setVisible(false);
-        actionBox.setManaged(false);
+        winnerLabel.setText(event.getWinningOptionName() == null
+                ? "" : "Winning option: " + event.getWinningOptionName());
+
+        updateActionControls(event, List.of());
+    }
+
+    private void showLmsr() {
+        setSectionVisible(lmsrBox, true);
+        setSectionVisible(orderBookBox, false);
+        orderBookViewController.show(null);
+    }
+
+    private static void setSectionVisible(javafx.scene.layout.Pane box, boolean visible) {
+        box.setVisible(visible);
+        box.setManaged(visible);
     }
 
     private EventDto findEvent(int id) {

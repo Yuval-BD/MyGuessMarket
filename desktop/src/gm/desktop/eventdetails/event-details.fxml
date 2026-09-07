@@ -45,11 +45,21 @@
                     <Button fx:id="buyButton" text="Buy shares" onAction="#onBuyClicked"/>
                 </FlowPane>
 
-                <Label fx:id="messageLabel" wrapText="true"/>
+                    <FlowPane fx:id="orderBar" hgap="8.0" vgap="6.0" visible="false" managed="false">
+                    <ChoiceBox fx:id="orderSideChoice" prefWidth="90.0"/>
+                    <ChoiceBox fx:id="orderOptionChoice" prefWidth="150.0"/>
+                    <TextField fx:id="orderQuantityField" promptText="quantity" prefWidth="100.0"/>
+                    <TextField fx:id="orderPriceField" promptText="price" prefWidth="90.0"/>
+                    <Button fx:id="submitOrderButton" text="Submit order" onAction="#onSubmitOrderClicked"/>
+                </FlowPane>
+
+            <Label fx:id="messageLabel" wrapText="true"/>
             </VBox>
 
             <Separator/>
 
+            <!-- One of these two is shown; the mechanisms display genuinely different things. -->
+            <VBox fx:id="lmsrBox" spacing="10.0">
             <Label text="Current state" style="-fx-font-weight: bold;"/>
             <TableView fx:id="optionsTable" prefHeight="90.0">
                 <columnResizePolicy>
@@ -88,6 +98,11 @@
                     <Label text="No trades yet."/>
                 </placeholder>
             </TableView>
+            </VBox>
+
+            <VBox fx:id="orderBookBox" spacing="10.0" visible="false" managed="false">
+                <fx:include fx:id="orderBookView" source="../orderbook/order-book-view.fxml"/>
+            </VBox>
         </VBox>
     </content>
 

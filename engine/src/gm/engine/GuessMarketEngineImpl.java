@@ -4,6 +4,7 @@ import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.DtoMapper;
 import gm.engine.dto.EventDto;
 import gm.engine.dto.EventStateDto;
+import gm.engine.dto.OrderBookStateDto;
 import gm.engine.dto.OrderResultDto;
 import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.PurchaseResultDto;
@@ -92,6 +93,11 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     @Override
     public EventStateDto getEventState(int eventId) {
         return DtoMapper.toEventStateDto(requireSystem().getEvent(eventId));
+    }
+
+    @Override
+    public OrderBookStateDto getOrderBookState(int eventId) {
+        return DtoMapper.toOrderBookStateDto(requireSystem().getEvent(eventId));
     }
 
     @Override

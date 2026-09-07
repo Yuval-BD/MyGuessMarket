@@ -3,6 +3,7 @@ package gm.engine;
 import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.EventDto;
 import gm.engine.dto.EventStateDto;
+import gm.engine.dto.OrderBookStateDto;
 import gm.engine.dto.OrderResultDto;
 import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.PurchaseResultDto;
@@ -60,6 +61,9 @@ public interface GuessMarketEngine {
 
     /** The LMSR trading state of one event: prices, shares, account, trade history. */
     EventStateDto getEventState(int eventId);
+
+    /** The order-book state of one event: both books, their statistics, and the participants. */
+    OrderBookStateDto getOrderBookState(int eventId);
 
     // ---------------------------------------------------------------- lifecycle
 

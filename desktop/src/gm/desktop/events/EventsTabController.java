@@ -118,6 +118,12 @@ public class EventsTabController {
         }
     }
 
+    /** Same as on the users tab: a new file means the previous selection no longer refers to anything. */
+    public void reset() {
+        eventsTable.getSelectionModel().clearSelection();
+        eventDetailsController.showEvent(null, null);
+    }
+
     // ------------------------------------------------------------------ filtering
 
     private boolean matchesFilters(EventDto event) {

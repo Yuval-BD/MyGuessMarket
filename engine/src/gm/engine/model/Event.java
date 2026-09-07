@@ -526,14 +526,43 @@ public class Event {
         }
     }
 
+    /**
+     * Shares already promised to resting sell orders are not available to promise again.
+     * <p>
+     * Checking only current holdings would let someone rest two sell orders backed by the same
+     * shares. Both could then execute, and the second would fail while removing shares - after the
+     * money had already moved. Nothing can deliver shares that do not exist, so this is refused up
+     * front rather than discovered halfway through a settlement.
+     * <p>
+     * Note the deliberate asymmetry with money: buy orders do <em>not</em> reserve cash, because the
+     * exercise wants a resting buy its owner can no longer afford to execute anyway, report itself,
+     * and block the user. Shares have no such rule - there is simply nothing to hand over.
+     */
     private void requireEnoughShares(User user, EventOption option, long quantity) {
         Participation participation = participants.get(user.getName());
         long held = participation == null ? 0 : participation.getShares(option.getName());
-        if (held < quantity) {
+        long alreadyOffered = sharesOfferedFor(user, option);
+        long available = held - alreadyOffered;
+
+        if (available < quantity) {
+            String detail = alreadyOffered > 0
+                    ? String.format("holds %d and has already offered %d", held, alreadyOffered)
+                    : String.format("holds only %d", held);
             throw new InvalidQuantityException(String.format(
-                    "Error: %s wants to sell %d shares of \"%s\" but holds only %d.",
-                    user.getName(), quantity, option.getName(), held));
+                    "Error: %s wants to sell %d shares of \"%s\" but %s.",
+                    user.getName(), quantity, option.getName(), detail));
         }
+    }
+
+    /** How many of this user's shares of the option are already committed to resting sell orders. */
+    private long sharesOfferedFor(User user, EventOption option) {
+        long offered = 0;
+        for (Order ask : bookFor(option).getAsks()) {
+            if (ask.getUserName().equals(user.getName())) {
+                offered += ask.getRemainingQuantity();
+            }
+        }
+        return offered;
     }
 
     /**

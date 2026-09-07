@@ -97,6 +97,10 @@ public class AppController {
             finishLoad(task);
             loadedFilePathField.setText(engine.getLoadedFilePath());
             mainTabPane.setDisable(false);
+            // A new file replaces the whole system, so both tabs drop what was selected before
+            // anything is pulled in - otherwise the details panel keeps showing the old file.
+            eventsViewController.reset();
+            usersViewController.reset();
             refreshAll();
         });
 
@@ -145,6 +149,10 @@ public class AppController {
         alert.initOwner(ownerWindow);
         alert.setTitle("The file could not be loaded");
         alert.setHeaderText("The file was not loaded. The system you had loaded is unchanged.");
+
+        // Drop the stock error icon: the oversized red X adds nothing next to a header that already
+        // says what happened, and it crowds the problem list.
+        alert.setGraphic(null);
 
         // A content problem lists every fault in the file, which can be many lines - a plain
         // content label would clip them.

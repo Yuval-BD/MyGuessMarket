@@ -53,6 +53,16 @@ public class UsersTabController {
     private GuessMarketEngine engine;
     private Runnable onChanged = () -> { };
 
+    /**
+     * True while this tab is rebuilding its own tables.
+     * <p>
+     * Replacing the rows clears the selection and then restores it, and JavaFX fires the selection
+     * listeners for both. Those listeners exist to react to a <em>person</em> choosing something -
+     * switching user resets the details panel - so letting them run during a refresh makes a trade
+     * look like the user navigated away, wiping the panel and the result message with it.
+     */
+    private boolean refreshing;
+
     @FXML
     private void initialize() {
         usersTable.setItems(userRows);
@@ -103,15 +113,38 @@ public class UsersTabController {
             return;
         }
 
-        String selectedUser = selectedUserName();
-        userRows.setAll(engine.getAllUsers());
-        restoreUserSelection(selectedUser);
-        refreshSelectedUser();
+        refreshing = true;
+        try {
+            String selectedUser = selectedUserName();
+            userRows.setAll(engine.getAllUsers());
+            restoreUserSelection(selectedUser);
+            refreshSelectedUser();
+            // The selection listeners are suppressed while refreshing, so the shared details panel
+            // is refreshed here by hand. Without this it would keep showing pre-trade figures.
+            userEventDetailsController.refresh();
+        } finally {
+            refreshing = false;
+        }
+    }
+
+    /**
+     * Forgets everything the previous file left selected. Event ids and user names from one file
+     * mean nothing in the next one, so a load starts from "nothing chosen" rather than trying to
+     * restore a selection that may no longer exist.
+     */
+    public void reset() {
+        involvementsTable.getSelectionModel().clearSelection();
+        usersTable.getSelectionModel().clearSelection();
+        userEventDetailsController.showEvent(null, null);
+        showNoUser();
     }
 
     // ------------------------------------------------------------------ selection
 
     private void onUserSelected() {
+        if (refreshing) {
+            return;
+        }
         refreshSelectedUser();
         // A different person is now acting, so the details panel starts fresh rather than keeping
         // the previous user's selected event.
@@ -120,6 +153,9 @@ public class UsersTabController {
     }
 
     private void onInvolvementSelected() {
+        if (refreshing) {
+            return;
+        }
         UserInvolvementDto involvement = involvementsTable.getSelectionModel().getSelectedItem();
         userEventDetailsController.showEvent(
                 involvement == null ? null : involvement.getEventId(),

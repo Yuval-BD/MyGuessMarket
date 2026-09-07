@@ -12,8 +12,12 @@ import gm.engine.model.Trade;
 import gm.engine.model.User;
 import gm.engine.orderbook.Execution;
 import gm.engine.orderbook.ExecutionKind;
+import gm.engine.orderbook.BookStats;
+import gm.engine.orderbook.Order;
+import gm.engine.orderbook.OrderBook;
 import gm.engine.orderbook.OrderResult;
 import gm.engine.trading.LmsrTradingMethod;
+import gm.engine.trading.OrderBookTradingMethod;
 import gm.engine.trading.TradingMethodType;
 
 import java.util.ArrayList;
@@ -210,6 +214,70 @@ public final class DtoMapper {
                 holdings,
                 commissionPaid,
                 netResult);
+    }
+
+    /**
+     * Builds the order-book view. LMSR events are rejected rather than squeezed into this shape -
+     * they have a price curve and a trade history, not two books.
+     */
+    public static OrderBookStateDto toOrderBookStateDto(Event event) {
+        if (!(event.getTradingMethod() instanceof OrderBookTradingMethod method)) {
+            throw new InvalidEventStateException(String.format(
+                    "Error: event \"%s\" is an LMSR event and has no order book.", event.getName()));
+        }
+
+        List<OptionBookDto> books = new ArrayList<>();
+        for (EventOption option : event.getOptions()) {
+            OrderBook book = event.getOrderBook(option.getName());
+            books.add(new OptionBookDto(
+                    option.getName(),
+                    toRestingOrderDtos(book.getBids()),
+                    toRestingOrderDtos(book.getAsks()),
+                    toBookStatsDto(book.stats()),
+                    option.getSharesBought()));
+        }
+
+        List<ParticipantDto> participants = new ArrayList<>();
+        for (Participation participation : event.getParticipants()) {
+            List<HoldingDto> holdings = new ArrayList<>();
+            for (Holding holding : participation.getHoldings()) {
+                holdings.add(new HoldingDto(
+                        holding.getOptionName(), holding.getShares(), holding.getAmountPaid()));
+            }
+            participants.add(new ParticipantDto(
+                    participation.getUserName(),
+                    participation.getUser() == event.getMarketMaker(),
+                    holdings,
+                    participation.getTotalCommissionPaid(),
+                    participation.getNetResult()));
+        }
+
+        return new OrderBookStateDto(
+                event.getId(),
+                event.getName(),
+                toEventStatusDto(event.getStatus()),
+                event.getMarketMaker().getName(),
+                event.getAccount().getBalance(),
+                event.getCommissionCollected(),
+                method.getBaseValue(),
+                method.allowsMint(),
+                books,
+                participants,
+                winnerNameOf(event));
+    }
+
+    private static List<RestingOrderDto> toRestingOrderDtos(List<Order> orders) {
+        List<RestingOrderDto> dtos = new ArrayList<>();
+        for (Order order : orders) {
+            dtos.add(new RestingOrderDto(
+                    order.getUserName(), order.getRemainingQuantity(), order.getPricePerShare()));
+        }
+        return dtos;
+    }
+
+    private static BookStatsDto toBookStatsDto(BookStats stats) {
+        return new BookStatsDto(stats.lastTradePrice(), stats.bestBid(), stats.bestAsk(),
+                stats.mid(), stats.spread());
     }
 
     public static OrderResultDto toOrderResultDto(OrderResult result) {

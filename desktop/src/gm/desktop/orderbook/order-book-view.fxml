@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="gm.desktop.orderbook.OrderBookViewController"
+      spacing="10.0">
+
+    <Label fx:id="mintLabel" wrapText="true"/>
+
+    <!-- The two books sit side by side, each with fixed heights, because this whole panel lives
+         inside a vertically scrolling pane. Letting the tables grow would nest one scrollbar
+         inside another. -->
+    <HBox spacing="10.0">
+        <VBox fx:id="firstBookBox" spacing="4.0">
+            <HBox.hgrow><Priority fx:constant="ALWAYS"/></HBox.hgrow>
+            <Label fx:id="firstOptionLabel" style="-fx-font-weight: bold;"/>
+            <Label fx:id="firstStatsLabel" wrapText="true"/>
+            <Label text="Buy orders (highest first)"/>
+            <TableView fx:id="firstBidsTable" prefHeight="120.0" minHeight="90.0">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+                </columnResizePolicy>
+                <columns>
+                    <TableColumn fx:id="firstBidUserColumn" text="User" prefWidth="90.0" sortable="false"/>
+                    <TableColumn fx:id="firstBidQtyColumn" text="Shares" prefWidth="60.0" sortable="false"/>
+                    <TableColumn fx:id="firstBidPriceColumn" text="Price" prefWidth="60.0" sortable="false"/>
+                </columns>
+                <placeholder><Label text="No buyers."/></placeholder>
+            </TableView>
+            <Label text="Sell orders (lowest first)"/>
+            <TableView fx:id="firstAsksTable" prefHeight="120.0" minHeight="90.0">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+                </columnResizePolicy>
+                <columns>
+                    <TableColumn fx:id="firstAskUserColumn" text="User" prefWidth="90.0" sortable="false"/>
+                    <TableColumn fx:id="firstAskQtyColumn" text="Shares" prefWidth="60.0" sortable="false"/>
+                    <TableColumn fx:id="firstAskPriceColumn" text="Price" prefWidth="60.0" sortable="false"/>
+                </columns>
+                <placeholder><Label text="No sellers."/></placeholder>
+            </TableView>
+        </VBox>
+
+        <VBox fx:id="secondBookBox" spacing="4.0">
+            <HBox.hgrow><Priority fx:constant="ALWAYS"/></HBox.hgrow>
+            <Label fx:id="secondOptionLabel" style="-fx-font-weight: bold;"/>
+            <Label fx:id="secondStatsLabel" wrapText="true"/>
+            <Label text="Buy orders (highest first)"/>
+            <TableView fx:id="secondBidsTable" prefHeight="120.0" minHeight="90.0">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+                </columnResizePolicy>
+                <columns>
+                    <TableColumn fx:id="secondBidUserColumn" text="User" prefWidth="90.0" sortable="false"/>
+                    <TableColumn fx:id="secondBidQtyColumn" text="Shares" prefWidth="60.0" sortable="false"/>
+                    <TableColumn fx:id="secondBidPriceColumn" text="Price" prefWidth="60.0" sortable="false"/>
+                </columns>
+                <placeholder><Label text="No buyers."/></placeholder>
+            </TableView>
+            <Label text="Sell orders (lowest first)"/>
+            <TableView fx:id="secondAsksTable" prefHeight="120.0" minHeight="90.0">
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+                </columnResizePolicy>
+                <columns>
+                    <TableColumn fx:id="secondAskUserColumn" text="User" prefWidth="90.0" sortable="false"/>
+                    <TableColumn fx:id="secondAskQtyColumn" text="Shares" prefWidth="60.0" sortable="false"/>
+                    <TableColumn fx:id="secondAskPriceColumn" text="Price" prefWidth="60.0" sortable="false"/>
+                </columns>
+                <placeholder><Label text="No sellers."/></placeholder>
+            </TableView>
+        </VBox>
+    </HBox>
+
+    <Label text="Participants" style="-fx-font-weight: bold;"/>
+    <TableView fx:id="participantsTable" prefHeight="150.0" minHeight="110.0">
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS"/>
+        </columnResizePolicy>
+        <columns>
+            <TableColumn fx:id="participantNameColumn" text="User" prefWidth="100.0"/>
+            <TableColumn fx:id="participantHoldingsColumn" text="Holdings" prefWidth="230.0"/>
+            <TableColumn fx:id="participantValueColumn" text="Value if it wins" prefWidth="110.0"/>
+            <TableColumn fx:id="participantCommissionColumn" text="Commission paid" prefWidth="110.0"/>
+        </columns>
+        <placeholder><Label text="Nobody has traded in this event yet."/></placeholder>
+    </TableView>
+
+</VBox>
