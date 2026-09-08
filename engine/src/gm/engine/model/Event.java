@@ -195,7 +195,7 @@ public class Event {
     }
 
     public Participation participationOf(User user) {
-        return participants.computeIfAbsent(user.getName(), key -> new Participation(user));
+        return participants.computeIfAbsent(user.getName(), _ -> new Participation(user));
     }
 
     public Participation getParticipation(String userName) {

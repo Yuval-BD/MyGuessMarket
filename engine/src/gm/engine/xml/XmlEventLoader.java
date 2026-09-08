@@ -339,7 +339,7 @@ public class XmlEventLoader {
                             userName, referencedId));
                     continue;
                 }
-                claimsByEventId.computeIfAbsent(referencedId, key -> new ArrayList<>()).add(userName);
+                claimsByEventId.computeIfAbsent(referencedId, _ -> new ArrayList<>()).add(userName);
             }
         }
 

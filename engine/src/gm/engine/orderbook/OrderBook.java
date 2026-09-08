@@ -51,12 +51,12 @@ public class OrderBook {
 
     /** The order a seller would hit first, or null when nobody is bidding. */
     public Order bestBid() {
-        return bids.isEmpty() ? null : bids.get(0);
+        return bids.isEmpty() ? null : bids.getFirst();
     }
 
     /** The order a buyer would lift first, or null when nobody is offering. */
     public Order bestAsk() {
-        return asks.isEmpty() ? null : asks.get(0);
+        return asks.isEmpty() ? null : asks.getFirst();
     }
 
     public void recordTrade(double price) {

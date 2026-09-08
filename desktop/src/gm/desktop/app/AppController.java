@@ -92,8 +92,8 @@ public class AppController {
         setLoadingVisible(true);
         loadFileButton.setDisable(true);
 
-        task.setOnSucceeded(event -> {
-            finishLoad(task);
+        task.setOnSucceeded(_ -> {
+            finishLoad();
             loadedFilePathField.setText(engine.getLoadedFilePath());
             mainTabPane.setDisable(false);
             // A new file replaces the whole system, so selections from the old one mean nothing.
@@ -102,8 +102,8 @@ public class AppController {
             refreshAll();
         });
 
-        task.setOnFailed(event -> {
-            finishLoad(task);
+        task.setOnFailed(_ -> {
+            finishLoad();
             // A failed load leaves the previous system untouched, so nothing is refreshed.
             showLoadError(task.getException());
         });
@@ -113,7 +113,7 @@ public class AppController {
         thread.start();
     }
 
-    private void finishLoad(LoadFileTask task) {
+    private void finishLoad() {
         // Unbind first: assigning to a bound property throws.
         loadProgressBar.progressProperty().unbind();
         loadStatusLabel.textProperty().unbind();

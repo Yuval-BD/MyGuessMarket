@@ -105,7 +105,7 @@ public class OrderBookViewController {
                         : "Minting is off: shares can only change hands, never be created."));
 
         List<OptionBookDto> books = state.getBooks();
-        showBook(books.isEmpty() ? null : books.get(0),
+        showBook(books.isEmpty() ? null : books.getFirst(),
                 firstOptionLabel, firstStatsLabel, firstBids, firstAsks);
         showBook(books.size() < 2 ? null : books.get(1),
                 secondOptionLabel, secondStatsLabel, secondBids, secondAsks);

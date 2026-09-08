@@ -32,8 +32,6 @@ import java.util.List;
  */
 public class EventsTabController {
 
-    private static final String NO_VALUE = "-";
-
     @FXML private ToggleButton lmsrFilter;
     @FXML private ToggleButton orderBookFilter;
     @FXML private ToggleButton notStartedFilter;
@@ -72,11 +70,11 @@ public class EventsTabController {
         accountColumn.setCellValueFactory(cell -> text(money(cell.getValue().getAccountBalance())));
 
         for (ToggleButton filter : allFilters()) {
-            filter.selectedProperty().addListener((observable, was, is) -> refresh());
+            filter.selectedProperty().addListener((_, _, _) -> refresh());
         }
 
         eventsTable.getSelectionModel().selectedItemProperty()
-                .addListener((observable, was, is) -> onEventSelected(is));
+                .addListener((_, _, selected) -> onEventSelected(selected));
     }
 
     public void setEngine(GuessMarketEngine engine) {

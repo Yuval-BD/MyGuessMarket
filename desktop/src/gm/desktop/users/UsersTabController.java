@@ -82,9 +82,9 @@ public class UsersTabController {
                         : "-"));
 
         usersTable.getSelectionModel().selectedItemProperty()
-                .addListener((observable, was, is) -> onUserSelected());
+                .addListener((_, _, _) -> onUserSelected());
         involvementsTable.getSelectionModel().selectedItemProperty()
-                .addListener((observable, was, is) -> onInvolvementSelected());
+                .addListener((_, _, _) -> onInvolvementSelected());
 
         showNoUser();
     }
