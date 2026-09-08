@@ -44,8 +44,7 @@ public class LoadFileTask extends Task<Void> {
         updateProgress(0.35, 1);
         updateMessage("Checking the file contents...");
 
-        // Anything wrong with the file throws here. Task catches it, moves to the FAILED state and
-        // hands it to setOnFailed, so the controller reports it without a try/catch of its own.
+        // A throw here moves the Task to FAILED and reaches setOnFailed in the controller.
         engine.loadEventsFromFile(fullPath);
 
         updateProgress(0.8, 1);

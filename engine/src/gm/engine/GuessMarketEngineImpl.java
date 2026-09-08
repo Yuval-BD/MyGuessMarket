@@ -3,7 +3,7 @@ package gm.engine;
 import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.DtoMapper;
 import gm.engine.dto.EventDto;
-import gm.engine.dto.EventStateDto;
+import gm.engine.dto.LmsrStateDto;
 import gm.engine.dto.OrderBookStateDto;
 import gm.engine.dto.OrderResultDto;
 import gm.engine.dto.OrderSideDto;
@@ -42,8 +42,7 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     @Override
     public void loadEventsFromFile(String fullPath) {
         // Assigned only on success, so a failed load leaves the previous system untouched.
-        GuessMarketSystem loaded = loader.load(fullPath);
-        system = loaded;
+        system = loader.load(fullPath);
         loadedFilePath = fullPath.trim();
     }
 
@@ -76,8 +75,7 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
         for (Event event : loaded.getEvents()) {
             Participation participation = event.getParticipation(user.getName());
             boolean isMarketMaker = event.getMarketMaker() == user;
-            // Active events are listed even for someone who has never acted in them - otherwise a
-            // user with no history has no way to reach an event and can never start trading.
+            // Active events are listed even without history, or a new user could never start.
             if (participation != null || isMarketMaker || event.isActive()) {
                 involvements.add(DtoMapper.toInvolvementDto(event, participation, isMarketMaker));
             }
@@ -91,8 +89,8 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
     }
 
     @Override
-    public EventStateDto getEventState(int eventId) {
-        return DtoMapper.toEventStateDto(requireSystem().getEvent(eventId));
+    public LmsrStateDto getLmsrState(int eventId) {
+        return DtoMapper.toLmsrStateDto(requireSystem().getEvent(eventId));
     }
 
     @Override
@@ -116,7 +114,7 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
         EventOption winner = event.getOption(optionNumber);
 
         ClosingOutcome outcome = event.close(actor, winner);
-        return DtoMapper.toCloseResultDto(outcome, event);
+        return DtoMapper.toCloseResultDto(outcome);
     }
 
     @Override
@@ -126,7 +124,7 @@ public class GuessMarketEngineImpl implements GuessMarketEngine {
         User buyer = loaded.getUser(userName);
 
         Trade trade = event.buyLmsr(buyer, optionNumber, quantity);
-        return DtoMapper.toPurchaseResultDto(trade, buyer, event);
+        return DtoMapper.toPurchaseResultDto(trade, buyer);
     }
 
     @Override

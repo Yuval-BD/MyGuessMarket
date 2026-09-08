@@ -4,9 +4,10 @@ import gm.desktop.orderbook.OrderBookViewController;
 import gm.engine.GuessMarketEngine;
 import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.EventDto;
-import gm.engine.dto.EventStateDto;
+import gm.engine.dto.LmsrStateDto;
 import gm.engine.dto.EventStatusDto;
 import gm.engine.dto.OptionStateDto;
+import gm.engine.dto.OrderBookStateDto;
 import gm.engine.dto.OrderResultDto;
 import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.PurchaseResultDto;
@@ -30,6 +31,8 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Shows one event, and - when an acting user is supplied - lets that user act on it.
@@ -44,9 +47,8 @@ import java.util.List;
  */
 public class EventDetailsController {
 
-    private static final String NOT_AVAILABLE = "-";
+    private static final Logger LOGGER = Logger.getLogger(EventDetailsController.class.getName());
 
-    @FXML private VBox root;
     @FXML private Label titleLabel;
     @FXML private Label subtitleLabel;
     @FXML private Label descriptionLabel;
@@ -107,7 +109,7 @@ public class EventDetailsController {
 
         optionNameColumn.setCellValueFactory(cell -> text(cell.getValue().getName()));
         optionPriceColumn.setCellValueFactory(cell -> text(price(cell.getValue().getPrice())));
-        optionSharesColumn.setCellValueFactory(cell -> text(String.valueOf(cell.getValue().getSharesBought())));
+        optionSharesColumn.setCellValueFactory(cell -> text(String.valueOf(cell.getValue().getSharesOutstanding())));
 
         tradeBuyerColumn.setCellValueFactory(cell -> text(cell.getValue().getBuyerName()));
         tradeOptionColumn.setCellValueFactory(cell -> text(cell.getValue().getOptionName()));
@@ -136,9 +138,7 @@ public class EventDetailsController {
      * @param actingUserName the user acting here, or null for a read-only view
      */
     public void showEvent(Integer eventId, String actingUserName) {
-        // Only wipe the last result when the panel actually moves to a different event or a
-        // different person. A refresh after an action re-selects the same row and lands here again;
-        // clearing unconditionally would erase the message that action just produced.
+        // A refresh lands here again with the same target, so only a real move clears the result.
         boolean sameTarget = java.util.Objects.equals(this.eventId, eventId)
                 && java.util.Objects.equals(this.actingUserName, actingUserName);
 
@@ -179,7 +179,7 @@ public class EventDetailsController {
         }
 
         showLmsr();
-        EventStateDto state = engine.getEventState(eventId);
+        LmsrStateDto state = engine.getLmsrState(eventId);
         optionRows.setAll(state.getOptionStates());
         tradeRows.setAll(state.getTrades());
 
@@ -302,12 +302,12 @@ public class EventDetailsController {
                 message.append(String.format("%n  %s %d at $%.2f with %s%s",
                         execution.isMint() ? "Minted" : "Traded",
                         execution.getQuantity(),
-                        execution.getPartyPrice(),
+                        execution.getPrice(),
                         execution.getCounterpartyName(),
                         execution.isMint()
                                 ? String.format(" (who paid $%.2f for %s)",
-                                        execution.getCounterpartyPrice(),
-                                        execution.getCounterpartyOptionName())
+                                execution.getCounterpartyPrice(),
+                                execution.getCounterpartyOptionName())
                                 : ""));
             }
         } else {
@@ -337,13 +337,10 @@ public class EventDetailsController {
         try {
             message = command.execute();
         } catch (GuessMarketException e) {
-            // Every rule violation arrives here carrying a message written for the person reading
-            // it, so it is shown as-is rather than translated.
             message = e.getMessage();
         } catch (RuntimeException e) {
-            // Not a rule violation - a defect. It must not vanish into the console with the window
-            // looking as though nothing happened, so it is shown and also printed for debugging.
-            e.printStackTrace();
+            // A defect, not a rule violation: show it rather than let it vanish into the console.
+            LOGGER.log(Level.SEVERE, "An action failed unexpectedly", e);
             showUnexpectedError(e);
             message = "Something went wrong inside the application. See the dialog for details.";
         }
@@ -351,8 +348,7 @@ public class EventDetailsController {
         refresh();
         onChanged.run();
 
-        // Set the message last. The refresh above ripples out to the surrounding tabs, which
-        // re-select rows and can re-enter this panel - anything written before that can be lost.
+        // Last: the refresh above can re-enter this panel and wipe anything set before it.
         messageLabel.setText(message);
     }
 
@@ -389,20 +385,18 @@ public class EventDetailsController {
         boolean notStarted = event.getStatus() == EventStatusDto.NOT_STARTED;
         boolean active = event.getStatus() == EventStatusDto.ACTIVE;
 
-        // A blocked user is stopped by the engine anyway. Saying so up front, and greying out what
-        // cannot work, is friendlier than letting them fill in an order and refusing it afterwards.
+        // The engine refuses a blocked user anyway; saying so up front beats refusing a filled form.
         boolean blocked = engine.getUser(actingUserName).isBlocked();
         blockedLabel.setText(blocked
                 ? actingUserName + " went into a negative balance and is blocked from trading "
-                        + "anywhere in the system."
+                + "anywhere in the system."
                 : "");
         setSectionVisible(blockedLabel, blocked);
 
         boolean canTrade = active && !blocked;
 
         openButton.setDisable(!isMarketMaker || !notStarted || blocked);
-        // Closing is allowed even when blocked: it only pays money out, and a locked event would
-        // trap everyone else's money too.
+        // Allowed even when blocked: closing only pays money out. See Event.close.
         closeButton.setDisable(!isMarketMaker || !active);
         winnerChoice.setDisable(!isMarketMaker || !active);
 
@@ -420,8 +414,6 @@ public class EventDetailsController {
         orderPriceField.setDisable(!canTrade);
         submitOrderButton.setDisable(!canTrade);
 
-        // The winner choice always needs the option names; the LMSR buy row only exists for LMSR
-        // events, and the order row takes its names from the event rather than from price state.
         fillOptionChoiceFromNames(winnerChoice, event.getOptionNames());
         fillOptionChoiceFromNames(orderOptionChoice, event.getOptionNames());
         if (!isOrderBook) {
@@ -435,7 +427,7 @@ public class EventDetailsController {
         if (previous != null && names.contains(previous)) {
             choice.setValue(previous);
         } else if (!names.isEmpty()) {
-            choice.setValue(names.get(0));
+            choice.setValue(names.getFirst());
         }
     }
 
@@ -447,7 +439,7 @@ public class EventDetailsController {
         if (previous != null && names.contains(previous)) {
             choice.setValue(previous);
         } else if (!names.isEmpty()) {
-            choice.setValue(names.get(0));
+            choice.setValue(names.getFirst());
         }
     }
 
@@ -488,10 +480,12 @@ public class EventDetailsController {
         optionRows.clear();
         tradeRows.clear();
 
-        orderBookViewController.show(engine.getOrderBookState(eventId));
+        OrderBookStateDto state = engine.getOrderBookState(eventId);
+        orderBookViewController.show(state);
 
         accountLabel.setText("Event account: " + money(event.getAccountBalance()));
-        commissionLabel.setText("");
+        commissionLabel.setText("Commission generated for the market maker: "
+                + money(state.getCommissionCollected()));
         winnerLabel.setText(event.getWinningOptionName() == null
                 ? "" : "Winning option: " + event.getWinningOptionName());
 

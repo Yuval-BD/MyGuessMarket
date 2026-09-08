@@ -23,17 +23,9 @@ import gm.engine.trading.TradingMethodType;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The single place model objects become DTOs. Nothing else converts, so the rule that no core
- * object ever escapes the engine has exactly one place to be checked.
- * <p>
- * Every DTO is built fresh on each call and holds only immutable data, so a UI holding one can
- * never observe the model changing underneath it, and can never change the model by accident.
- */
 public final class DtoMapper {
 
-    private DtoMapper() {
-    }
+    private DtoMapper() {}
 
     public static CommissionTypeDto toCommissionTypeDto(CommissionType type) {
         return switch (type) {
@@ -41,7 +33,6 @@ public final class DtoMapper {
             case ON_CLOSE -> CommissionTypeDto.ON_CLOSE;
         };
     }
-
     public static EventStatusDto toEventStatusDto(EventStatus status) {
         return switch (status) {
             case NOT_STARTED -> EventStatusDto.NOT_STARTED;
@@ -49,14 +40,12 @@ public final class DtoMapper {
             case CLOSED -> EventStatusDto.CLOSED;
         };
     }
-
     public static TradingMethodTypeDto toTradingMethodTypeDto(TradingMethodType type) {
         return switch (type) {
             case LMSR -> TradingMethodTypeDto.LMSR;
             case ORDER_BOOK -> TradingMethodTypeDto.ORDER_BOOK;
         };
     }
-
     public static UserDto toUserDto(User user) {
         return new UserDto(
                 user.getName(),
@@ -64,7 +53,6 @@ public final class DtoMapper {
                 user.isBlocked(),
                 user.getTotalCommissionCollected());
     }
-
     public static List<UserDto> toUserDtos(List<User> users) {
         List<UserDto> dtos = new ArrayList<>();
         for (User user : users) {
@@ -72,7 +60,6 @@ public final class DtoMapper {
         }
         return dtos;
     }
-
     public static EventDto toEventDto(Event event) {
         List<String> optionNames = new ArrayList<>();
         for (EventOption option : event.getOptions()) {
@@ -92,7 +79,6 @@ public final class DtoMapper {
                 event.getAccount().getBalance(),
                 winnerNameOf(event));
     }
-
     public static List<EventDto> toEventDtos(List<Event> events) {
         List<EventDto> dtos = new ArrayList<>();
         for (Event event : events) {
@@ -105,31 +91,27 @@ public final class DtoMapper {
      * Builds the LMSR trading view. Order-book events are rejected rather than filled with
      * meaningless prices - they get their own view once the order book exists.
      */
-    public static EventStateDto toEventStateDto(Event event) {
+    public static LmsrStateDto toLmsrStateDto(Event event) {
         if (!(event.getTradingMethod() instanceof LmsrTradingMethod lmsr)) {
             throw new InvalidEventStateException(String.format(
                     "Error: event \"%s\" is an order book event and has no LMSR price state.",
                     event.getName()));
         }
 
-        long[] shares = event.getSharesArray();
+        long[] shares = event.sharesPerOption();
         List<OptionStateDto> optionStates = new ArrayList<>();
         List<EventOption> options = event.getOptions();
         for (int i = 0; i < options.size(); i++) {
             optionStates.add(new OptionStateDto(
                     options.get(i).getName(),
                     lmsr.optionPrice(i, shares),
-                    options.get(i).getSharesBought()));
+                    options.get(i).getSharesOutstanding()));
         }
 
-        return new EventStateDto(
-                event.getId(),
-                event.getName(),
-                toEventStatusDto(event.getStatus()),
+        return new LmsrStateDto(
                 optionStates,
                 event.getAccount().getBalance(),
                 event.getCommissionCollected(),
-                event.getMarketMaker().getName(),
                 toTradeDtosNewestFirst(event.getTrades()),
                 winnerNameOf(event));
     }
@@ -144,7 +126,6 @@ public final class DtoMapper {
                 trade.getTotalPaid());
     }
 
-    /** Reversed here so no UI has to remember to do it. */
     public static List<TradeDto> toTradeDtosNewestFirst(List<Trade> trades) {
         List<TradeDto> dtos = new ArrayList<>();
         for (int i = trades.size() - 1; i >= 0; i--) {
@@ -153,7 +134,7 @@ public final class DtoMapper {
         return dtos;
     }
 
-    public static PurchaseResultDto toPurchaseResultDto(Trade trade, User buyer, Event event) {
+    public static PurchaseResultDto toPurchaseResultDto(Trade trade, User buyer) {
         return new PurchaseResultDto(
                 trade.getBuyerName(),
                 trade.getOption().getName(),
@@ -161,28 +142,15 @@ public final class DtoMapper {
                 trade.getSharesCost(),
                 trade.getCommissionPaid(),
                 trade.getTotalPaid(),
-                buyer.getBalance(),
-                toEventStateDto(event));
+                buyer.getBalance());
     }
 
-    public static CloseResultDto toCloseResultDto(ClosingOutcome outcome, Event event) {
+    public static CloseResultDto toCloseResultDto(ClosingOutcome outcome) {
         return new CloseResultDto(
                 outcome.winningOptionName(),
                 outcome.totalPaidToWinners(),
                 outcome.totalCommissionCollected(),
-                outcome.leftoverReturnedToMarketMaker(),
-                lmsrStateOrNull(event));
-    }
-
-    /**
-     * The LMSR price state, or null for an order-book event, which has no such thing - it has two
-     * books instead. The figures that matter at close (what was paid out, the commission, the
-     * leftover) are on the result itself, so an order-book close loses nothing by this being null.
-     */
-    private static EventStateDto lmsrStateOrNull(Event event) {
-        return event.getTradingMethod() instanceof LmsrTradingMethod
-                ? toEventStateDto(event)
-                : null;
+                outcome.leftoverReturnedToMarketMaker());
     }
 
     /**
@@ -234,7 +202,7 @@ public final class DtoMapper {
                     toRestingOrderDtos(book.getBids()),
                     toRestingOrderDtos(book.getAsks()),
                     toBookStatsDto(book.stats()),
-                    option.getSharesBought()));
+                    option.getSharesOutstanding()));
         }
 
         List<ParticipantDto> participants = new ArrayList<>();
@@ -248,24 +216,16 @@ public final class DtoMapper {
                     participation.getUserName(),
                     participation.getUser() == event.getMarketMaker(),
                     holdings,
-                    participation.getTotalCommissionPaid(),
-                    participation.getNetResult()));
+                    participation.getTotalCommissionPaid()));
         }
 
         return new OrderBookStateDto(
-                event.getId(),
-                event.getName(),
-                toEventStatusDto(event.getStatus()),
-                event.getMarketMaker().getName(),
-                event.getAccount().getBalance(),
                 event.getCommissionCollected(),
                 method.getBaseValue(),
                 method.allowsMint(),
                 books,
-                participants,
-                winnerNameOf(event));
+                participants);
     }
-
     private static List<RestingOrderDto> toRestingOrderDtos(List<Order> orders) {
         List<RestingOrderDto> dtos = new ArrayList<>();
         for (Order order : orders) {
@@ -274,19 +234,17 @@ public final class DtoMapper {
         }
         return dtos;
     }
-
     private static BookStatsDto toBookStatsDto(BookStats stats) {
         return new BookStatsDto(stats.lastTradePrice(), stats.bestBid(), stats.bestAsk(),
                 stats.mid(), stats.spread());
     }
-
     public static OrderResultDto toOrderResultDto(OrderResult result) {
         List<ExecutionDto> executions = new ArrayList<>();
         for (Execution execution : result.executions()) {
             executions.add(new ExecutionDto(
                     execution.kind() == ExecutionKind.MINT,
                     execution.quantity(),
-                    execution.partyName(), execution.partyOptionName(), execution.partyPrice(),
+                    execution.price(),
                     execution.counterpartyName(), execution.counterpartyOptionName(),
                     execution.counterpartyPrice()));
         }
@@ -294,7 +252,6 @@ public final class DtoMapper {
                 result.requestedQuantity(), result.filledQuantity(), result.restingQuantity(),
                 result.totalSpent(), result.totalReceived(), result.commissionPaid(), executions);
     }
-
     private static String winnerNameOf(Event event) {
         EventOption winner = event.getWinningOption();
         return winner == null ? null : winner.getName();

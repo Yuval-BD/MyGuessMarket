@@ -58,14 +58,6 @@ public class GuessMarketSystem {
         return user;
     }
 
-    public boolean hasEvent(int id) {
-        return eventsById.containsKey(id);
-    }
-
-    public boolean hasUser(String name) {
-        return name != null && usersByName.containsKey(name.trim());
-    }
-
     private String listEventIds() {
         return eventsById.keySet().stream()
                 .map(String::valueOf)

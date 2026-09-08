@@ -54,8 +54,7 @@ public class AppController {
         this.engine = engine;
         eventsViewController.setEngine(engine);
         usersViewController.setEngine(engine);
-        // Trading happens on the users tab, but it changes event state and account balances that
-        // the events tab shows, so anything done there refreshes the events side too.
+        // Trading on the users tab changes what the events tab shows, so it refreshes both.
         usersViewController.setOnChanged(eventsViewController::refresh);
     }
 
@@ -97,8 +96,7 @@ public class AppController {
             finishLoad(task);
             loadedFilePathField.setText(engine.getLoadedFilePath());
             mainTabPane.setDisable(false);
-            // A new file replaces the whole system, so both tabs drop what was selected before
-            // anything is pulled in - otherwise the details panel keeps showing the old file.
+            // A new file replaces the whole system, so selections from the old one mean nothing.
             eventsViewController.reset();
             usersViewController.reset();
             refreshAll();
@@ -106,8 +104,7 @@ public class AppController {
 
         task.setOnFailed(event -> {
             finishLoad(task);
-            // A failed load leaves the previously loaded system untouched, so nothing is refreshed
-            // and nothing on screen changes except the message.
+            // A failed load leaves the previous system untouched, so nothing is refreshed.
             showLoadError(task.getException());
         });
 
@@ -117,8 +114,7 @@ public class AppController {
     }
 
     private void finishLoad(LoadFileTask task) {
-        // The bindings have to go before anything sets these controls directly - a bound property
-        // throws if you assign to it.
+        // Unbind first: assigning to a bound property throws.
         loadProgressBar.progressProperty().unbind();
         loadStatusLabel.textProperty().unbind();
         loadProgressBar.setProgress(0);
@@ -150,12 +146,10 @@ public class AppController {
         alert.setTitle("The file could not be loaded");
         alert.setHeaderText("The file was not loaded. The system you had loaded is unchanged.");
 
-        // Drop the stock error icon: the oversized red X adds nothing next to a header that already
-        // says what happened, and it crowds the problem list.
+        // Drop the stock red X: the header already says what happened, and it crowds the list.
         alert.setGraphic(null);
 
-        // A content problem lists every fault in the file, which can be many lines - a plain
-        // content label would clip them.
+        // A content problem can list many faults, and a plain label would clip them.
         TextArea details = new TextArea(message);
         details.setEditable(false);
         details.setWrapText(true);

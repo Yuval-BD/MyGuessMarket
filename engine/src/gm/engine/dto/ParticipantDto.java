@@ -9,22 +9,17 @@ public final class ParticipantDto {
     private final boolean marketMaker;
     private final List<HoldingDto> holdings;
     private final double totalCommissionPaid;
-    private final double netResult;
 
     public ParticipantDto(String userName, boolean marketMaker, List<HoldingDto> holdings,
-                          double totalCommissionPaid, double netResult) {
+                          double totalCommissionPaid) {
         this.userName = userName;
         this.marketMaker = marketMaker;
         this.holdings = List.copyOf(holdings);
         this.totalCommissionPaid = totalCommissionPaid;
-        this.netResult = netResult;
     }
 
     public String getUserName() { return userName; }
     public boolean isMarketMaker() { return marketMaker; }
     public List<HoldingDto> getHoldings() { return holdings; }
     public double getTotalCommissionPaid() { return totalCommissionPaid; }
-
-    /** Money received minus money spent here. Only meaningful once the event has closed. */
-    public double getNetResult() { return netResult; }
 }

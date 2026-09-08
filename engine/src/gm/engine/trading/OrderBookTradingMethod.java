@@ -41,7 +41,6 @@ public final class OrderBookTradingMethod implements TradingMethod{
         return initialInvestment / baseValue;
     }
 
-    public int getInitialInvestment()  { return initialInvestment; }
     public int getBaseValue()          { return baseValue; }
     public boolean allowsMint()        { return allowMint; }
     public double maxOrderPrice()      { return baseValue - 0.01; }

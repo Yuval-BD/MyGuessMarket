@@ -224,7 +224,7 @@ public class XmlEventLoader {
             return;
         }
 
-        String first = safe(optionNames.get(0));
+        String first = safe(optionNames.getFirst());
         String second = safe(optionNames.get(1));
         if (first.isEmpty() || second.isEmpty()) {
             problems.add(label + ": option names must not be blank.");
@@ -273,9 +273,7 @@ public class XmlEventLoader {
             problems.add(String.format(
                     "%s: initial investment cannot be negative, but found %d.", label, initial));
         }
-        // Every share pair must be paid for at exactly d, or the event account cannot settle to
-        // zero at close. An initial investment that is not a whole number of pairs would leave
-        // money stranded in the event with nobody entitled to it.
+        // A part-pair would strand money in the event account that nobody is entitled to.
         if (baseValue > 0 && initial > 0 && initial % baseValue != 0) {
             problems.add(String.format(
                     "%s: initial investment %d is not a whole multiple of the base value %d, "
@@ -358,14 +356,14 @@ public class XmlEventLoader {
                 if (distinct == 1) {
                     problems.add(String.format(
                             "%s: user \"%s\" declares this event %d times. Declare it once.",
-                            label, claims.get(0), claims.size()));
+                            label, claims.getFirst(), claims.size()));
                 } else {
                     problems.add(String.format(
                             "%s: declared as market maker by %s. Every event needs exactly one.",
                             label, String.join(", ", claims)));
                 }
             } else {
-                marketMakerByEventId.put(id, claims.get(0));
+                marketMakerByEventId.put(id, claims.getFirst());
             }
         }
 

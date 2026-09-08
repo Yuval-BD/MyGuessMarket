@@ -6,7 +6,7 @@ import gm.engine.dto.CloseResultDto;
 import gm.engine.dto.OrderResultDto;
 import gm.engine.dto.OrderSideDto;
 import gm.engine.dto.EventDto;
-import gm.engine.dto.EventStateDto;
+import gm.engine.dto.LmsrStateDto;
 import gm.engine.dto.OptionStateDto;
 import gm.engine.dto.PurchaseResultDto;
 import gm.engine.dto.UserDto;
@@ -211,6 +211,8 @@ public final class SmokeMain {
         OrderResultDto lift = engine.submitOrder(CLOB_EVENT_ID, "Alice", YES, OrderSideDto.BUY, 25, 0.58);
         check("filled", lift.getFilledQuantity(), 25);
         check("Alice spent 14.50 + 0.145 commission", lift.getTotalSpent(), 14.65);
+        checkText("the seller is named, not the buyer",
+                lift.getExecutions().getFirst().getCounterpartyName(), "Zoe");
         check("Alice balance", balanceOf(engine, "Alice"), 185.36);
         check("Zoe collected sale plus commission", balanceOf(engine, "Zoe"), 414.65);
         check("event account untouched by a resale", accountOf(engine, CLOB_EVENT_ID), 100.00);
@@ -228,6 +230,9 @@ public final class SmokeMain {
         OrderResultDto walk = engine.submitOrder(CLOB_EVENT_ID, "Zoe", YES, OrderSideDto.SELL, 30, 0.45);
         check("filled", walk.getFilledQuantity(), 30);
         check("two fills at two prices", walk.getExecutions().size(), 2);
+        // The counterparty is the other side of the trade, never the person who submitted it.
+        checkText("first fill was against Bob", walk.getExecutions().getFirst().getCounterpartyName(), "Bob");
+        checkText("second fill was against Carol", walk.getExecutions().get(1).getCounterpartyName(), "Carol");
         // 20 x 0.50 + 10 x 0.48 = 14.80, better than the 0.45 she would have accepted.
         check("Zoe received", walk.getTotalReceived(), 14.80);
         check("Bob balance", balanceOf(engine, "Bob"), 178.54);
@@ -241,12 +246,12 @@ public final class SmokeMain {
         OrderResultDto mint = engine.submitOrder(CLOB_EVENT_ID, "Alice", YES, OrderSideDto.BUY, 40, 0.62);
         check("minted", mint.getFilledQuantity(), 35);
         check("remainder rests", mint.getRestingQuantity(), 5);
-        check("it was a mint, not a trade", mint.getExecutions().get(0).isMint() ? 1 : 0, 1);
+        check("it was a mint, not a trade", mint.getExecutions().getFirst().isMint() ? 1 : 0, 1);
         // Carol rested first so her 0.42 stands; Alice pays the complement 0.58, under her 0.62 limit.
         check("Alice paid the complement, not her limit",
-                mint.getExecutions().get(0).getPartyPrice(), 0.58);
+                mint.getExecutions().getFirst().getPrice(), 0.58);
         check("Carol was honoured at her own price",
-                mint.getExecutions().get(0).getCounterpartyPrice(), 0.42);
+                mint.getExecutions().getFirst().getCounterpartyPrice(), 0.42);
         check("both payments went to the event account",
                 accountOf(engine, CLOB_EVENT_ID), 135.00);
         check("Alice balance", balanceOf(engine, "Alice"), 164.85);
@@ -340,15 +345,15 @@ public final class SmokeMain {
     // ---------------------------------------------------------------- helpers
 
     private static void printOptionStates(GuessMarketEngine engine) {
-        EventStateDto state = engine.getEventState(LMSR_EVENT_ID);
+        LmsrStateDto state = engine.getLmsrState(LMSR_EVENT_ID);
         for (OptionStateDto option : state.getOptionStates()) {
             System.out.printf("  %-12s price %.2f   shares %d%n",
-                    option.getName(), option.getPrice(), option.getSharesBought());
+                    option.getName(), option.getPrice(), option.getSharesOutstanding());
         }
     }
 
     private static double priceOf(GuessMarketEngine engine, int zeroBasedIndex) {
-        return engine.getEventState(LMSR_EVENT_ID).getOptionStates().get(zeroBasedIndex).getPrice();
+        return engine.getLmsrState(LMSR_EVENT_ID).getOptionStates().get(zeroBasedIndex).getPrice();
     }
 
     private static double balanceOf(GuessMarketEngine engine, String userName) {
@@ -388,6 +393,17 @@ public final class SmokeMain {
     private static void heading(String title) {
         System.out.println();
         System.out.println("== " + title);
+    }
+
+    /** Same report line as check(), for names and other text. */
+    private static void checkText(String label, String actual, String expected) {
+        checksRun++;
+        boolean ok = expected.equals(actual);
+        if (!ok) {
+            checksFailed++;
+        }
+        System.out.printf("  [%s] %-38s expected %10s   got %10s%n",
+                ok ? "OK  " : "FAIL", label, expected, actual);
     }
 
     /** Same report line as check(), for the things that are true or false rather than an amount. */

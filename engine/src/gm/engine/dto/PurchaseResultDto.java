@@ -9,11 +9,10 @@ public final class PurchaseResultDto {
     private final double commissionPaid;
     private final double totalPaid;
     private final double buyerBalanceAfter;
-    private final EventStateDto stateAfter;
 
     public PurchaseResultDto(String buyerName, String optionName, long quantity,
                              double sharesCost, double commissionPaid, double totalPaid,
-                             double buyerBalanceAfter, EventStateDto stateAfter) {
+                             double buyerBalanceAfter) {
         this.buyerName = buyerName;
         this.optionName = optionName;
         this.quantity = quantity;
@@ -21,7 +20,6 @@ public final class PurchaseResultDto {
         this.commissionPaid = commissionPaid;
         this.totalPaid = totalPaid;
         this.buyerBalanceAfter = buyerBalanceAfter;
-        this.stateAfter = stateAfter;
     }
 
     public String getBuyerName() { return buyerName; }
@@ -31,5 +29,4 @@ public final class PurchaseResultDto {
     public double getCommissionPaid() { return commissionPaid; }
     public double getTotalPaid() { return totalPaid; }
     public double getBuyerBalanceAfter() { return buyerBalanceAfter; }
-    public EventStateDto getStateAfter() { return stateAfter; }
 }

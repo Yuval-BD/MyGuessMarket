@@ -76,8 +76,7 @@ public class Event {
         this.tradingMethod = tradingMethod;
         this.marketMaker = marketMaker;
 
-        // An order book event gets an empty book per option up front, so the UI can show the books
-        // before anyone has traded. LMSR events get none, and submitOrder refuses them anyway.
+        // An empty book per option up front, so the UI can show them before anyone has traded.
         if (tradingMethod instanceof OrderBookTradingMethod) {
             for (EventOption option : this.options) {
                 books.put(option.getName(), new OrderBook(option.getName()));
@@ -124,11 +123,8 @@ public class Event {
                     "Error: event \"%s\" - \"%s\" is not one of this event's options.",
                     name, winner == null ? "" : winner.getName()));
         }
-        // Deliberately no requireNotBlocked here, unlike open() and both trading methods.
-        // Blocking stops a user taking on new risk; closing takes none - it pays the winners and
-        // hands the leftover back. If a blocked market maker could not close, every participant's
-        // money would stay locked in the event account forever, punishing people who did nothing
-        // wrong. This asymmetry is written up in the README.
+        // Deliberately no requireNotBlocked, unlike open() and both trading methods: closing takes
+        // on no risk, and refusing it would lock every participant's money in. See the README.
 
         double payoutPerShare = payoutPerShare();
         double totalPaidToWinners = 0;
@@ -181,7 +177,7 @@ public class Event {
         buyer.requireNotBlocked();
 
         EventOption option = getOption(optionNumber);
-        double sharesCost = lmsr.costOfBuying(optionNumber - 1, quantity, getSharesArray());
+        double sharesCost = lmsr.costOfBuying(optionNumber - 1, quantity, sharesPerOption());
         double commission = commissionType == CommissionType.ON_PURCHASE
                 ? sharesCost * commissionPercent / PERCENT
                 : 0;
@@ -219,10 +215,10 @@ public class Event {
         return options.get(optionNumber - 1);
     }
 
-    public long[] getSharesArray() {
+    public long[] sharesPerOption() {
         long[] shares = new long[options.size()];
         for (int i = 0; i < options.size(); i++) {
-            shares[i] = options.get(i).getSharesBought();
+            shares[i] = options.get(i).getSharesOutstanding();
         }
         return shares;
     }
@@ -342,10 +338,6 @@ public class Event {
         return books.get(optionName);
     }
 
-    public Map<String, OrderBook> getOrderBooks() {
-        return Collections.unmodifiableMap(books);
-    }
-
     // ------------------------------------------------------------------ matching internals
 
     /** Running totals for the user who submitted the order, so the result can report them. */
@@ -378,8 +370,7 @@ public class Event {
             ask.fill(quantity);
             book.recordTrade(price);
             book.removeFilledOrders();
-            executions.add(Execution.trade(quantity, incoming.getUserName(), ask.getUserName(),
-                    option.getName(), price));
+            executions.add(Execution.trade(quantity, price, ask.getUserName(), option.getName()));
         }
     }
 
@@ -402,8 +393,7 @@ public class Event {
             bid.fill(quantity);
             book.recordTrade(price);
             book.removeFilledOrders();
-            executions.add(Execution.trade(quantity, bid.getUserName(), incoming.getUserName(),
-                    option.getName(), price));
+            executions.add(Execution.trade(quantity, price, bid.getUserName(), option.getName()));
         }
     }
 
@@ -442,8 +432,7 @@ public class Event {
             bookFor(option).recordTrade(incomingPrice);
             otherBook.recordTrade(restingPrice);
             otherBook.removeFilledOrders();
-            executions.add(Execution.mint(quantity,
-                    incoming.getUserName(), option.getName(), incomingPrice,
+            executions.add(Execution.mint(quantity, incomingPrice,
                     restingBid.getUserName(), other.getName(), restingPrice));
         }
     }
@@ -592,6 +581,6 @@ public class Event {
     }
 
     private EventOption otherOption(EventOption option) {
-        return options.get(0).equals(option) ? options.get(1) : options.get(0);
+        return options.getFirst().equals(option) ? options.getLast() : options.getFirst();
     }
 }

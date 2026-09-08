@@ -7,7 +7,7 @@ import java.util.Objects;
 public class EventOption {
 
     private final String name;
-    private long sharesBought = 0;
+    private long sharesOutstanding = 0;
 
     public EventOption(String name) {
         if (name == null || name.trim().isBlank()) {
@@ -20,8 +20,8 @@ public class EventOption {
         return name;
     }
 
-    public long getSharesBought() {
-        return sharesBought;
+    public long getSharesOutstanding() {
+        return sharesOutstanding;
     }
 
     public void addShares(long quantity) {
@@ -29,7 +29,7 @@ public class EventOption {
             throw new InvalidQuantityException(
                     String.format("Error: quantity must be a positive number, but got %d.", quantity));
         }
-        sharesBought += quantity;
+        sharesOutstanding += quantity;
     }
 
     @Override

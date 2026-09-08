@@ -17,7 +17,6 @@ public class Order {
     private final String optionName;
     private final OrderSide side;
     private final double pricePerShare;
-    private final long originalQuantity;
 
     private long remainingQuantity;
 
@@ -32,7 +31,6 @@ public class Order {
         this.optionName = optionName;
         this.side = side;
         this.pricePerShare = pricePerShare;
-        this.originalQuantity = quantity;
         this.remainingQuantity = quantity;
     }
 
@@ -55,6 +53,5 @@ public class Order {
     public String getOptionName() { return optionName; }
     public OrderSide getSide() { return side; }
     public double getPricePerShare() { return pricePerShare; }
-    public long getOriginalQuantity() { return originalQuantity; }
     public long getRemainingQuantity() { return remainingQuantity; }
 }

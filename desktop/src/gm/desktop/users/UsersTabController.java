@@ -92,8 +92,7 @@ public class UsersTabController {
     public void setEngine(GuessMarketEngine engine) {
         this.engine = engine;
         userEventDetailsController.setEngine(engine);
-        // Anything done in the details panel changes balances and event state, so the whole
-        // application refreshes rather than just this tab.
+        // Actions change balances and event state, so the whole application refreshes.
         userEventDetailsController.setOnChanged(() -> {
             refresh();
             onChanged.run();
@@ -119,8 +118,7 @@ public class UsersTabController {
             userRows.setAll(engine.getAllUsers());
             restoreUserSelection(selectedUser);
             refreshSelectedUser();
-            // The selection listeners are suppressed while refreshing, so the shared details panel
-            // is refreshed here by hand. Without this it would keep showing pre-trade figures.
+            // The selection listeners are suppressed here, so the panel is refreshed by hand.
             userEventDetailsController.refresh();
         } finally {
             refreshing = false;
@@ -146,8 +144,7 @@ public class UsersTabController {
             return;
         }
         refreshSelectedUser();
-        // A different person is now acting, so the details panel starts fresh rather than keeping
-        // the previous user's selected event.
+        // A different person is acting, so the panel starts fresh.
         involvementsTable.getSelectionModel().clearSelection();
         userEventDetailsController.showEvent(null, selectedUserName());
     }

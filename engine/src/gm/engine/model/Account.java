@@ -36,13 +36,5 @@ public class Account {
         balance -= amount;
     }
 
-    public void recordCommission(double amount) {
-        if (amount < 0) {
-            throw new InvalidQuantityException(
-                    String.format("Error: cannot record a negative commission amount (%.2f).", amount));
-        }
-        totalCommissionCollected += amount;
-    }
-
     public boolean isOverdrawn() { return balance < 0; }
 }
